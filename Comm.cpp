@@ -99,19 +99,44 @@ void GridHandler::Init()
   defend_entry.clear();
   for (int i = 0; i < H; ++i) {
     for (int j = 0; j < W; ++j) {
-      if (grid_info[i][j] == 's') { enemy_entry.push_back(Vec2(i, j)); }
-      if (grid_info[i][j] == 'g') { defend_entry.push_back(Vec2(i, j)); }
-      if (grid_info[i][j] == '0') { empty_entry.push_back(Vec2(i, j)); }
+      if (grid_info[i][j] == 's') { enemy_entry.push_back(Vec2(i, j)); grid_info[i][j] = '0'; }
+      if (grid_info[i][j] == 'g') { defend_entry.push_back(Vec2(i, j)); grid_info[i][j] = '0'; }
+      if (grid_info[i][j] == '0') { empty_entry.push_back(Vec2(i, j)); grid_info[i][j] = '0'; }
     }
+  }
+
+  enemy_move_path.clear();
+  enemy_instruction.clear();
+  for (int i = 0; i < enemy_entry.size(); ++i) {
+    enemy_move_path.push_back(vector<Vec2>());
+    enemy_instruction.push_back(string());
   }
 }
 
 int GridHandler::CheckPassable(int x, int y) {
-  return 0 <= x && x < H && 0 <= y && y < W && grid_info[x][y] != '1' && grid_info[x][y] != 't';
+  return 0 <= x && x < H && 0 <= y && y < W && grid_info[x][y] == '0';
 }
 
 int GridHandler::CheckBuildable(int x, int y) {
+
+  Vec2 p = Vec2(x, y);
+  for (int i = 0; i < defend_entry.size(); ++i)
+    if (p == defend_entry[i]) return 0;
+
+  for (int i = 0; i < enemy_entry.size(); ++i)
+    if (p == enemy_entry[i]) return 0;
+
   return 0 <= x && x < H && 0 <= y && y < W && grid_info[x][y] == '0';
+}
+
+int GridHandler::CheckPassable(const Vec2& grid)
+{
+  return CheckPassable(grid.x, grid.y);
+}
+
+int GridHandler::CheckBuildable(const Vec2& grid)
+{
+  return CheckBuildable(grid.x, grid.y);
 }
 
 vector<Vec2>& GridHandler::GetDefendEntry()
@@ -129,47 +154,34 @@ vector<Vec2>& GridHandler::GetEnemyEntry()
   return enemy_entry;
 }
 
-vector<Vec2>& GridHandler::GetEnemyMovePath(const Vec2& enemy_src)
+void GridHandler::GetUnion(vector<Vec2>& lhs, const vector<Vec2>& rhs)
 {
-  for (int i = 0; i < enemy_entry.size(); ++i) {
-    if (enemy_src == enemy_entry[i]) return enemy_move_path[i];
+  lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+  sort(lhs.begin(), lhs.end());
+  int tmp = unique(lhs.begin(), lhs.end()) - lhs.begin();
+  lhs.erase(lhs.begin()+tmp, lhs.end());
+}
+
+int GridHandler::CalNearBlockable(const vector<Vec2>& near, vector<Vec2>& path)
+{
+  int x, y;
+  for (int i = 0; i < near.size(); ++i) {
+    for (int l = 0; l < 8; l += 2) {
+      x = near[i].x + dir[l][0];
+      y = near[i].y + dir[l][1];
+      if (CheckBuildable(x, y)) {
+	path.push_back(Vec2(x, y));
+      }
+    }
   }
-}
-string GridHandler::GetEnemyMoveInstruction(const Vec2& enemy_src)
-{
-  for (int i = 0; i < enemy_entry.size(); ++i) {
-    if (enemy_src == enemy_entry[i]) return enemy_instruction[i];
-  }
+
+  sort(path.begin(), path.end());
+  int tmp = unique(path.begin(), path.end()) - path.begin();
+  path.erase(path.begin()+tmp, path.end());
 }
 
-void GridHandler::GetEnemyPassedGrid(vector<Enemy> &enemy, vector<Vec2>& grid)
-{
-  grid.clear();
-
-  for (int i = 0; i < enemy_entry.size(); ++i)
-    //    for (int j = 0; j < enemy.size(); ++j)
-    //      if (enemy_entry[i] == enemy[j].position) {
-	grid.insert(grid.end(), enemy_move_path[i].begin(), enemy_move_path[i].end());
-  //  	break;
-  //      }
-
-  sort(grid.begin(), grid.end());
-  int tmp = unique(grid.begin(), grid.end()) - grid.begin();
-  grid.erase(grid.begin()+tmp, grid.end());
-}
-
-void GridHandler::CalAllEnemyMovePath()
-{
-  enemy_move_path.clear();
-  enemy_instruction.clear();
-  for (int i = 0; i < enemy_entry.size(); ++i) {
-    enemy_move_path.push_back(vector<Vec2>());
-    enemy_instruction.push_back(string());
-    CalEnemyMovePath(enemy_entry[i], enemy_move_path[i], enemy_instruction[i]);
-  }
-}
-
-void GridHandler::CalEnemyMovePath(const Vec2& enemy_src, vector<Vec2>& path, string &instruction)
+int GridHandler::CalMovePath(const Vec2& src, const vector<Vec2>& dst, 
+			     vector<Vec2>& path, string &instruction, int det)
 {
   static int dist[MAXN][MAXN];
   static int vis[MAXN][MAXN];
@@ -178,16 +190,16 @@ void GridHandler::CalEnemyMovePath(const Vec2& enemy_src, vector<Vec2>& path, st
   memset(vis, 0, sizeof(vis));
   memset(dist, 0x3f, sizeof(dist));
 
-  dist[enemy_src.x][enemy_src.y] = 0;
-  vis[enemy_src.x][enemy_src.y] = 1;
+  dist[src.x][src.y] = 0;
+  vis[src.x][src.y] = 1;
   int st = 0, ed = 1;
-  que[st] = enemy_src;
+  que[st] = src;
 
   Vec2 p;
   int x, y, x1, y1, x2, y2;
   for (; st < ed; ++st) {
     p = que[st];
-    for (int l = 0; l < 8; l+=1) { 
+    for (int l = 0; l < 8; l+=det) { 
       x2 = p.x;
       y1 = p.y;
       x = x1 = p.x + dir[l][0];
@@ -208,24 +220,24 @@ void GridHandler::CalEnemyMovePath(const Vec2& enemy_src, vector<Vec2>& path, st
   }
 
   int min_cost = INF;
-  for (int i = 0; i < defend_entry.size(); ++i) {
-    p = defend_entry[i];
+  for (int i = 0; i < dst.size(); ++i) {
+    p = dst[i];
     min_cost = min(min_cost, dist[p.x][p.y]);
   }
 
   path.clear();
   instruction.clear();
-  if (min_cost == INF) return;
+  if (min_cost == INF) return -1;
 
   vector<Vec2> cur_path;
   string cur_path_str, best_path_str = "9";
   int cur_path_len;
-  for (int i = 0; i < defend_entry.size(); ++i) {
-    p = defend_entry[i];
+  for (int i = 0; i < dst.size(); ++i) {
+    p = dst[i];
     if (dist[p.x][p.y] > min_cost) continue;
 
     cur_path.clear();
-    for (; p != enemy_src; p = pre[p.x][p.y]) {
+    for (; p != src; p = pre[p.x][p.y]) {
       cur_path.push_back(p);
     }
     cur_path.push_back(p);
@@ -251,46 +263,58 @@ void GridHandler::CalEnemyMovePath(const Vec2& enemy_src, vector<Vec2>& path, st
       instruction = best_path_str;
     }
   }
+
+  return 0;
 }
 
-void GridHandler::SetTowerBlock(const vector<Tower>& towers)
+int GridHandler::CalAllEnemyMovePath()
 {
-  int x, y;
-  for (int i = 0; i < towers.size(); ++i) {
-    x = towers[i].position.x;
-    y = towers[i].position.y;
-    grid_info[x][y] = 't';
+  for (int i = 0; i < enemy_entry.size(); ++i) {
+    enemy_move_path[i].clear();
+    enemy_instruction[i].clear();
+    if (CalMovePath(enemy_entry[i], defend_entry, enemy_move_path[i], enemy_instruction[i], 1)) return -1;
+  }
+  return 0;
+}
+
+vector<Vec2>& GridHandler::GetEnemyMovePath(const Vec2& enemy_src)
+{
+  for (int i = 0; i < enemy_entry.size(); ++i)
+    if (enemy_entry[i] == enemy_src) return enemy_move_path[i];
+}
+
+string GridHandler::GetEnemyMoveInstruction(const Vec2& enemy_src)
+{
+  for (int i = 0; i < enemy_entry.size(); ++i)
+    if (enemy_entry[i] == enemy_src) return enemy_instruction[i];
+}
+
+void GridHandler::SetBlock(const vector<Vec2>& grid, char c)
+{
+  Vec2 p;
+  for (int i = 0; i < grid.size(); ++i) {
+    p = grid[i];
+    grid_info[p.x][p.y] = c;
   }
 }
 
-void GridHandler::UnSetTowerBlock(const vector<Tower>& towers)
+void GridHandler::SetBlock(const Vec2& grid, char c)
 {
-  int x, y;
-  for (int i = 0; i < towers.size(); ++i) {
-    x = towers[i].position.x;
-    y = towers[i].position.y;
-    grid_info[x][y] = '0';
+  grid_info[grid.x][grid.y] = c;
+}
+
+void GridHandler::UnSetBlock(const vector<Vec2>& grid)
+{
+  Vec2 p;
+  for (int i = 0; i < grid.size(); ++i) {
+    p = grid[i];
+    grid_info[p.x][p.y] = '0';
   }
 }
 
-void GridHandler::SetEnemyBlock(const vector<Vec2>& enemy_path)
+void GridHandler::UnSetBlock(const Vec2& grid)
 {
-  int x, y;
-  for (int i = 0; i < enemy_path.size(); ++i) {
-    x = enemy_path[i].x;
-    y = enemy_path[i].y;
-    grid_info[x][y] = 'e';
-  }
-}
-
-void GridHandler::UnSetEnemyBlock(const vector<Vec2>& enemy_path)
-{
-  int x, y;
-  for (int i = 0; i < enemy_path.size(); ++i) {
-    x = enemy_path[i].x;
-    y = enemy_path[i].y;
-    grid_info[x][y] = '0';
-  }
+  grid_info[grid.x][grid.y] = '0';
 }
 
 void GridHandler::Debug()

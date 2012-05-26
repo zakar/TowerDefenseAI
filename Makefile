@@ -1,2 +1,2 @@
 all:
-	g++ ai.cpp SimpleSolver.cpp Comm.cpp
+	g++ ai.cpp BlockSolver.cpp Comm.cpp

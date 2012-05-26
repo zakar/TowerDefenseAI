@@ -40,27 +40,13 @@ void SimpleSolver::Run()
   GridHandler::Instance().GetEnemyPassedGrid(enemy_info, passed_grid);
   GridHandler::Instance().SetEnemyBlock(passed_grid);
 
-  for (int i = 0; i < passed_grid.size(); ++i) {
-    for (int l = 0; l < 8; ++l) {
-      x = passed_grid[i].x + dir[l][0];
-      y = passed_grid[i].y + dir[l][1];
-      if (GridHandler::Instance().CheckBuildable(x, y) && mp_tower[x][y] == -1) {
-	mp_tower[x][y] = 0;
-	towers.push_back(SimpleSolver::Point(x, y, INF));
-      }
-    }
-  }
   for (int i = 0; i < GridHandler::Instance().H; ++i) {
     for (int j = 0; j < GridHandler::Instance().W; ++j) {
-      if (GridHandler::Instance().CheckBuildable(i, j) && mp_tower[i][j] == -1) {
-	mp_tower[i][j] = 0;
+      if (GridHandler::Instance().CheckBuildable(i, j)) {
 	towers.push_back(SimpleSolver::Point(i, j, INF));
       }
     }
   }
-  
-  // vector<Vec2> &enemy_pos = GridHandler::Instance().GetEnemyEntry();
-  // vector<Vec2> &defend_pos = GridHandler::Instance().GetDefendEntry();
   
   for (int l = 0; l < towers.size(); ++l) {
     for (int i = 0; i < passed_grid.size(); ++i)
@@ -69,35 +55,16 @@ void SimpleSolver::Run()
 
   sort(towers.begin(), towers.end());
 
-  int rk[3];
   for (int limit = 1; limit <= towers.size(); limit += 1) {
-    rk[0] = 0; rk[1] = 2; rk[2] = 1;
-    for (int l = 0; l < 12; ++l) {
-      for (int l0 = 0; l0 <= 4; ++l0)
-	for (int l1 = 0; l1 <= 4; ++l1)
-	  for (int l2 = 0; l2 <= 4; ++l2) {
-	    result.clear();
-	    for (int i = 0; i < limit; ++i) {
-	      if (towers[i].score <= 1) {
-		result.push_back(Tower(l0, rk[0], towers[i].x, towers[i].y));
-		continue;
-	      } 
-	      if (towers[i].score <= 10) {
-		result.push_back(Tower(l1, rk[1], towers[i].x, towers[i].y));
-		continue;
-	      }
-	      if (towers[i].score <= 100) {
-		result.push_back(Tower(l2, rk[2], towers[i].x, towers[i].y));
-	      }
-	    }
-	    result.insert(result.end(), tower_info.begin(), tower_info.end());
-	    
-	    MatchChecker::Instance().Init(enemy_info, result, player_life);
-	    MatchChecker::Instance().Run();
-	    if (MatchChecker::Instance().IsWin()) goto label;
-	  }
-      swap(rk[rand()%3], rk[rand()%3]);
+    result.clear();
+    for (int i = 0; i < limit; ++i) {
+      result.push_back(Tower(0, 0, towers[i].x, towers[i].y));
     }
+    result.insert(result.end(), tower_info.begin(), tower_info.end());
+    
+    MatchChecker::Instance().Init(enemy_info, result, player_life);
+    MatchChecker::Instance().Run();
+    if (MatchChecker::Instance().IsWin()) goto label;
   }
 
  label:

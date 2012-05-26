@@ -1,4 +1,4 @@
-#include "SimpleSolver.h"
+#include "BlockSolver.h"
 #include "Comm.h"
 
 int main()
@@ -10,8 +10,8 @@ int main()
     fscanf(stdin, "%d", &L);
     fscanf(stdin, " END");
     for (int k = 0; k < L; ++k) {
-      SimpleSolver::Instance().Init();
-      SimpleSolver::Instance().Run();
+      BlockSolver::Instance().Init();
+      BlockSolver::Instance().Run();
     }
   }
   return 0;

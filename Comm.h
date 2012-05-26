@@ -67,17 +67,26 @@ struct GridHandler
   vector<Vec2>& GetEmptyGrid();
   vector<Vec2>& GetEnemyEntry();
   vector<Vec2>& GetDefendEntry();
+
+  static void GetUnion(vector<Vec2>& lhs, const vector<Vec2>& rhs);
+  int CalMovePath(const Vec2& src, const vector<Vec2>& dst, vector<Vec2>& path, string& instruction, int det = 2);
+
   vector<Vec2>& GetEnemyMovePath(const Vec2& enemy_src);
-  void GetEnemyPassedGrid(vector<Enemy> &enemy, vector<Vec2>& grid);
   string GetEnemyMoveInstruction(const Vec2& enemy_src);
-  void CalEnemyMovePath(const Vec2& enemy_src, vector<Vec2>& path, string& instruction);
-  void CalAllEnemyMovePath();
-  void SetTowerBlock(const vector<Tower>& towers);
-  void UnSetTowerBlock(const vector<Tower>& towers);
-  void SetEnemyBlock(const vector<Vec2>& enemy_path);
-  void UnSetEnemyBlock(const vector<Vec2>& enemy_path);
+  int CalAllEnemyMovePath();
+
+  void SetBlock(const vector<Vec2>& grid, char c);
+  void SetBlock(const Vec2& grid, char c);
+  void UnSetBlock(const vector<Vec2>& grid);
+  void UnSetBlock(const Vec2& grid);
+
+  int CalNearBlockable(const vector<Vec2>& near, vector<Vec2>& path);
+
   int CheckPassable(int x, int y);
   int CheckBuildable(int x, int y);
+  int CheckPassable(const Vec2& grid);
+  int CheckBuildable(const Vec2& grid);
+  
 
   void Debug();
 
@@ -85,10 +94,11 @@ struct GridHandler
   char grid_info[MAXN][MAXN];
 
   vector<Vec2> enemy_entry;
-  vector< vector<Vec2> > enemy_move_path;
-  vector<string> enemy_instruction;
   vector<Vec2> empty_entry;
   vector<Vec2> defend_entry;
+
+  vector< vector<Vec2> > enemy_move_path;
+  vector<string> enemy_instruction;
 };
 
 struct MatchChecker
