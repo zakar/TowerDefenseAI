@@ -164,6 +164,7 @@ void GridHandler::GetUnion(vector<Vec2>& lhs, const vector<Vec2>& rhs)
 
 int GridHandler::CalNearBlockable(const vector<Vec2>& near, vector<Vec2>& path)
 {
+  path.clear();
   int x, y;
   for (int i = 0; i < near.size(); ++i) {
     for (int l = 0; l < 8; l += 2) {
@@ -320,6 +321,7 @@ void GridHandler::UnSetBlock(const Vec2& grid)
 void GridHandler::Debug()
 {
   for (int i = 0; i < H; ++i) puts(grid_info[i]);
+  puts("");
 }
 
 int MatchChecker::TowerInfo::FindTarget(vector<EnemyInfo> &cur_enemy) {

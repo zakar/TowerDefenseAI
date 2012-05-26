@@ -34,6 +34,9 @@ void BlockSolver::Init()
   H = GH.H;
   W = GH.W;
 
+  enemy_entry = GridHandler::Instance().GetEnemyEntry();
+  defend_entry = GridHandler::Instance().GetDefendEntry();
+
   enemy_block_near.clear();
   defend_block_near.clear();
   goal_path.clear();
@@ -50,6 +53,9 @@ void BlockSolver::Init()
     defend_block_near.push_back(vector<Vec2>());
   }
 
+  GH.SetBlock(enemy_entry, 'e');
+  GH.SetBlock(defend_entry, 'd');
+
   for (int i = 0; i < enemy_entry.size(); ++i) {
     GH.CalNearBlockable(vector<Vec2>(1, enemy_entry[i]), enemy_block_near[i]);
   }
@@ -58,24 +64,32 @@ void BlockSolver::Init()
     GH.CalNearBlockable(vector<Vec2>(1, defend_entry[i]), defend_block_near[i]);
   }
 
-  enemy_entry = GridHandler::Instance().GetEnemyEntry();
-  defend_entry = GridHandler::Instance().GetDefendEntry();
+  GH.UnSetBlock(enemy_entry);
+  GH.UnSetBlock(defend_entry);
 }
 
 void BlockSolver::Run()
 {
   if (init_tower_cnt == 0) {
     CalRoute();
+    Debug();
+
+    printf("%d\n", tower2build.size());
+
+    Vec2 p;
+    for (int i = 0; i < tower2build.size(); ++i) {
+      p = tower2build[i].position;
+      if (p == door_left || p == door_right) {
+	printf("%d %d %d %d\n", p.y, p.x, 4, 1);
+      } else {
+	printf("%d %d %d %d\n", p.y, p.x, 0, 0);
+      }
+    }
+  } else {
+    puts("0");
   }
-
-  Debug();
-
-  // for (;;) {
-  //   RouteAnalysis();
-  //   MatchChecker::Instance().Init(enemy_info, tower2build, player_life);
-  //   MatchChecker::Instance().Run();
-  //   if (MatchChecker::Instance().IsWin()) break;
-  // }
+  
+  fflush(stdout);
 }
 
 void BlockSolver::CalRoute()
@@ -83,34 +97,47 @@ void BlockSolver::CalRoute()
   string tmp;
 
   best_score = 0;
-  for (int l = 0; l < defend_entry.size(); ++l) {   
+  for (int l = 0; l < defend_entry.size(); ++l) {
+    
     RouteInit();
-
+  reenter:
     while (RouteIter()) {      
-      RouteClear();
 
       for (int i = 0; i < defend_block_near.size(); ++i) GH.SetBlock(defend_block_near[i], 't');
       for (int i = 0; i < enemy_block_near.size(); ++i) GH.SetBlock(enemy_block_near[i], 't');
       GH.UnSetBlock(defend_block_near[l]);
 
-      GH.CalMovePath(goal_dst, vector<Vec2>(1, defend_entry[l]), goal_path, tmp);
-      GH.CalNearBlockable(goal_path, goal_near_block);
+      //      GH.Debug();
 
+      if (GH.CalMovePath(goal_dst, vector<Vec2>(1, defend_entry[l]), goal_path, tmp)) goto reenter;
+      GH.SetBlock(goal_path, 'e');
       for (int i = 0; i < enemy_entry.size(); ++i) GH.UnSetBlock(enemy_block_near[i]);
-      //顺序保证goal_path block成功
-      GH.SetBlock(goal_path, 'E');
+      GH.CalNearBlockable(goal_path, goal_near_block);
       GH.SetBlock(goal_near_block, 't');
+
+      //      GH.Debug();
 
       enemy_all_path.clear();
       for (int i = 0; i < enemy_entry.size(); ++i) {
-	GH.CalMovePath(enemy_entry[i], vector<Vec2>(1, enemy_dst), enemy_path[i], tmp);
+	if (GH.CalMovePath(enemy_entry[i], vector<Vec2>(1, enemy_dst), enemy_path[i], tmp)) goto reenter;
 	GH.GetUnion(enemy_all_path, enemy_path[i]);
       }
-
+      
       enemy_all_block_near.clear();
-      GH.CalNearBlockable(enemy_all_path, enemy_all_block_near);
       GH.SetBlock(enemy_all_path, 'e');
+      GH.CalNearBlockable(enemy_all_path, enemy_all_block_near);
+      GH.UnSetBlock(enemy_all_path);
       GH.SetBlock(enemy_all_block_near, 't');
+
+      GH.UnSetBlock(goal_path);
+      GH.UnSetBlock(enemy_all_path);
+      GH.UnSetBlock(mid);
+
+      //      GH.Debug();
+
+      if (GH.CalAllEnemyMovePath()) {
+	continue;
+      }
 
       RouteAnalysis();
     }
@@ -132,7 +159,13 @@ int BlockSolver::RouteInit()
 
 int BlockSolver::RouteIter()
 {
+  RouteClear();
+
   while (mx < H && my < W) {
+
+    ++my;
+    if (my == W) { my = 1; ++mx; }
+
     mid = Vec2(mx, my);
     up = mid + Vec2(1, 0);
     down = mid + Vec2(-1, 0);
@@ -145,61 +178,44 @@ int BlockSolver::RouteIter()
       GH.SetBlock(mid, 't');
       GH.SetBlock(left, 't');
       GH.SetBlock(right, 't');
+      goal_dst = down;
+      enemy_dst = up;
+
       break;
     }
-
-    ++my;
-    if (my == W) { my = 1; ++mx; }
   }
 
-  return 0;
+  return my < W && mx < H;
 }
 
 int BlockSolver::RouteAnalysis()
 {
-  GH.UnSetBlock(mid);
-  GH.UnSetBlock(left);
-  GH.UnSetBlock(right);
-  GH.SetBlock(mid, 'E');
+  if (goal_path.size() > best_score) {
+    best_score = goal_path.size();
+    door_left = left;
+    door_right = right;
 
-  if (GH.CalAllEnemyMovePath()) return -1;
-
-  int x, y;
-  int cur_score = 0;
-  vector<Spot> cur_build;
-
-  for (int i = 0; i < H; ++i)
-    for (int j = 0; j < W; ++j) {
-      if (GH.grid_info[i][j] != 't') continue;
-      Spot p = Spot(i, j);
-      for (int l = 0; l < 8; ++l) {
-	x = p.position.x + dir[l][0];
-	y = p.position.y + dir[l][1];
-	if (0 <= x && x < W && 0 <= y && y < H) {
-	  if (GH.grid_info[x][y] == 'e') p.score += 1, cur_score += 1;
-	  if (GH.grid_info[x][y] == 'E') p.score += 10, cur_score += 2;
-	}
-      }
-      cur_build.push_back(p);
-    }
-
-  if (cur_score > best_score) {
-    best_score = cur_score;
-    grid2build = cur_build;
-    grid2build.push_back(Spot(left.x, left.y));
-    grid2build.push_back(Spot(right.x, right.y));
+    tower2build.clear();
+    for (int i = 0; i < H; ++i)
+      for (int j = 0; j < W; ++j)
+	if (GH.grid_info[i][j] == 't')
+	  tower2build.push_back(Tower(0, 0, i, j));
   }
 }
 
 void BlockSolver::Debug()
 {
   RouteClear();
-  Spot p;
 
-  for (int i = 0; i < grid2build.size(); ++i) {
-    p = grid2build[i];
-    GH.grid_info[p.position.x][p.position.y] = 't';
+  Vec2 p;
+  for (int i = 0; i < tower2build.size(); ++i) {
+    p = tower2build[i].position;
+    GH.grid_info[p.x][p.y] = 't';
   }
+
+  printf("left %d %d\n", door_left.x, door_left.y);
+  printf("right %d %d\n", door_right.x, door_right.y);
+
   GH.Debug();
 
   RouteClear();

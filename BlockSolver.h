@@ -29,7 +29,6 @@ struct BlockSolver
   vector<Vec2> enemy_all_path;
   vector<Vec2> enemy_all_block_near;
 
-
   int RouteClear();
   int RouteInit();
   int RouteIter();
@@ -41,6 +40,7 @@ struct BlockSolver
     Spot(){}
     Spot(int x, int y):position(x,y),score(0){}
     Vec2 position;
+    int mask;
     int score;
     bool operator < (const Spot &p) const
     {
@@ -48,10 +48,9 @@ struct BlockSolver
     }
   };
 
-  vector<Spot> grid2build;
   int best_score;
-
   vector<Tower> tower2build;
+  Vec2 door_left, door_right;
   
   Vec2 up, down, left, right, mid;
   int mx, my;
