@@ -5,13 +5,27 @@
 
 struct BlockSolver
 {
-  static BlockSolver& Instance();
+  struct PassedGridInfo
+  {
+  PassedGridInfo(int x, int y):position(x,y){}
+    Vec2 position;
+    int max_can_recharge;
+    int route_idx;
+    bool operator < (const PassedGridInfo &p) const
+    {
+      return max_can_recharge > p.max_can_recharge ||
+	(max_can_recharge == p.max_can_recharge && route_idx > p.route_idx);
+    }
+  };
+
+
   BlockSolver();
+  static BlockSolver& Instance();
   void Init();
   void Run();
   void CalRoute();
   void CalChoice();
-  void CalCost(int &cost, vector<Tower> &res, vector<Tower>& tower2build);
+  void CalCost(int &cost, vector<Tower> &res, const vector<Tower>& tower2build);
   void Output(vector<Tower>& res);
 
   int mp_tower[MAXN][MAXN];
@@ -36,35 +50,23 @@ struct BlockSolver
   int RouteClear();
   int RouteInit();
   int RouteIter();
-  int RoutePreDo();
   int RouteAnalysis();
+  int RouteCalOpt(vector<PassedGridInfo>& opt, const vector<Vec2>& path);
 
-  struct PassedGridInfo
-  {
-  PassedGridInfo(int x, int y):position(x,y){}
-    Vec2 position;
-    long long mask;
-    int mask_cnt;
-    int max_dist;
-    bool operator < (const PassedGridInfo &p) const
-    {
-      return mask_cnt > p.mask_cnt || (mask_cnt == p.mask_cnt && max_dist > p.max_dist);
-    }
-  };
+  int grid_rank[MAXN][MAXN];
+  vector< vector<PassedGridInfo> > opt_grid;
+  vector<Vec2> grid2build;
+
+  vector<Tower> tower2build;
 
   int best_score;
-  int grid_rank[MAXN][MAXN];
-  int grid_mask[MAXN][MAXN];
-  vector<PassedGridInfo> grid2build;
-  vector<Tower> tower2build;
-  
   Vec2 up, down, left, right, mid;
   int mx, my;
   Vec2 enemy_dst;
   Vec2 goal_dst;
 
   void Debug();
-  FILE* fd;
+  FILE *fd;
 };
 
 #endif

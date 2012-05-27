@@ -35,12 +35,13 @@ struct Tower
   Tower(){}
   Tower(int lev, int ty, int x, int y):level(lev),type(ty),position(x,y){}
   static int BuildCost(int level, int type);
-  int BuildCost();
-  int Attack();
-  int Range();
-  int ReCharge();
-  int StopTime();
+  int BuildCost() const;
+  int Attack() const;
+  int Range() const;
+  int ReCharge() const;
+  int StopTime() const;
   int CheckInRange(const Vec2& p);
+  int CheckDiff(const Tower& tw);
   
   void Print();
 
@@ -148,14 +149,21 @@ struct MatchChecker
   static MatchChecker &Instance();
   void Init(const vector<Enemy> & enemy, const vector<Tower> &tower, int player_life);
   void Run();
-
   int IsWin();
+
+  int GetEnemyLifeStatu();
 
   int cur_time;
   int player_life;
   int remain_enemy;
   vector<EnemyInfo> cur_enemy;
   vector<TowerInfo> cur_tower;
+
+  enum {
+    INIT,
+    FINISH,
+  };
+  int RUNSTATUE;
 };
 
 

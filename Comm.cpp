@@ -27,7 +27,7 @@ int Tower::POW(int x, int ti) {
   return res;
 }
 
-int Tower::BuildCost(int level, int type)
+int Tower::BuildCost(int level, int type) 
 {
   int cost = 0;
   for (int lev = 0; lev <= level; ++lev) {
@@ -36,7 +36,7 @@ int Tower::BuildCost(int level, int type)
   return cost;
 }
 
-int Tower::BuildCost()
+int Tower::BuildCost() const
 {
   int cost = 0;
   for (int lev = 0; lev <= level; ++lev) {
@@ -45,28 +45,28 @@ int Tower::BuildCost()
   return cost;
 }
 
-int Tower::Attack()
+int Tower::Attack() const
 {
   if (type == 0) return 10;
   if (type == 1) return 20*POW(5, level);
   return 3*(level+1);
 }
 
-int Tower::Range()
+int Tower::Range() const
 {
   if (type == 0) return 3+level;
   if (type == 1) return 2;
   return 2+level;
 }
 
-int Tower::ReCharge()
+int Tower::ReCharge() const
 {
   if (type == 0) return 10-2*level;
   if (type == 1) return 100;
   return 20;
 }
 
-int Tower::StopTime()
+int Tower::StopTime() const
 {
   if (type == 2) return 2;
   return 0;
@@ -76,6 +76,13 @@ int Tower::CheckInRange(const Vec2& p)
 {
   int range = Range();
   return range * range >= position.LengthSq(p);
+}
+
+int Tower::CheckDiff(const Tower& tw)
+{
+  if (type != tw.type) return 1;
+  if (level < tw.level) return 1;
+  return 0;
 }
 
 void Tower::Print()
@@ -337,6 +344,8 @@ int MatchChecker::TowerInfo::FindTarget(const vector<EnemyInfo> &cur_enemy) {
     if (cur_enemy[j].remain_life <= 0 || cur_enemy[j].ins_idx == -1 || cur_enemy[j].wait_time == INF) continue;
     if (enemy_enter_time[j] == INF) continue;
 
+    assert(cur_enemy[j].remain_life > 0);
+
     if (enemy_enter_time[j] < in_time || 
 	(enemy_enter_time[j] == in_time  && cur_enemy[j].info.occur_time < oc_time) ||
 	(enemy_enter_time[j] == in_time  && cur_enemy[j].info.occur_time == oc_time && cur_enemy[j].info.input_rank < ip_time)) {
@@ -374,7 +383,8 @@ int MatchChecker::EnemyInfo::Action()
 
 int MatchChecker::EnemyInfo::InGoal()
 {
-  return ins_idx >= ins_len;
+  assert(ins_idx <= ins_len);
+  return ins_idx == ins_len;
 }
 
 MatchChecker &MatchChecker::Instance()
@@ -385,6 +395,7 @@ MatchChecker &MatchChecker::Instance()
 
 void MatchChecker::Init(const vector<Enemy> &enemy, const vector<Tower> &tower, int player_life)
 {
+  RUNSTATUE = INIT;
   cur_enemy.clear();
   cur_tower.clear();
   cur_time = 0;
@@ -409,11 +420,11 @@ void MatchChecker::Run()
       if (cur_enemy[i].remain_life <= 0 || cur_enemy[i].wait_time == INF) continue;
       cur_enemy[i].wait_time -= 1;
 
-      //      if (cur_enemy[i].wait_time) continue;
-      if (cur_enemy[i].wait_time == 0) {
+      if (cur_enemy[i].wait_time) continue;
+      //if (cur_enemy[i].wait_time == 0) {  //!!!!!!!!!!!!!!!!!can't use this!!!!!!
 	cur_enemy[i].Action();
 	cur_enemy[i].wait_time = cur_enemy[i].CalWaitTime();
-      }
+	//}
 
       for (size_t j = 0; j < cur_tower.size(); ++j) {
 	if (cur_tower[j].info.CheckInRange(cur_enemy[i].cur_position)) {
@@ -426,6 +437,7 @@ void MatchChecker::Run()
     }
 
     for (size_t i = 0; i < cur_tower.size(); ++i) cur_tower[i].FindTarget(cur_enemy);
+
     for (size_t i = 0; i < cur_tower.size(); ++i) {
       if (cur_tower[i].wait_time > 0) cur_tower[i].wait_time -= 1;
       if (cur_tower[i].wait_time) continue;
@@ -449,9 +461,20 @@ void MatchChecker::Run()
       if (cur_enemy[i].remain_life > 0 && cur_enemy[i].wait_time != INF) ++remain_enemy;
     }
   }
+
+  RUNSTATUE = FINISH;
 }
 
 int MatchChecker::IsWin()
 {
   return player_life > 0;
+}
+
+int MatchChecker::GetEnemyLifeStatu()
+{
+  int res = 0;
+  for (size_t i = 0; i < cur_enemy.size(); ++i) {
+    if (cur_enemy[i].remain_life > 0) res |= (1 << i);
+  }
+  return res;
 }
