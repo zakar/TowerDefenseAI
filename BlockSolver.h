@@ -6,6 +6,7 @@
 struct BlockSolver
 {
   static BlockSolver& Instance();
+  BlockSolver();
   void Init();
   void Run();
   void CalRoute();
@@ -63,6 +64,7 @@ struct BlockSolver
   Vec2 goal_dst;
 
   void Debug();
+  FILE* fd;
 };
 
 #endif

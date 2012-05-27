@@ -3,6 +3,12 @@
 
 #define GH GridHandler::Instance()
 
+BlockSolver::BlockSolver()
+{
+  fd = fopen("../bak/res.txt", "w");
+}
+
+
 BlockSolver& BlockSolver::Instance()
 {
   static BlockSolver ins;
@@ -73,7 +79,7 @@ void BlockSolver::Run()
 {
   if (init_tower_cnt == 0) {
     CalRoute();
-    Debug();
+    //    Debug();
   }
 
   CalChoice();
@@ -155,6 +161,12 @@ void BlockSolver::Output(vector<Tower>& res)
   printf("%d\n", res.size());
   for (size_t i = 0; i < res.size(); ++i) 
     printf("%d %d %d %d\n", res[i].position.y, res[i].position.x, res[i].level, res[i].type);
+
+  fprintf(fd, "%d\n", res.size());
+  for (size_t i = 0; i < res.size(); ++i) 
+    fprintf(fd, "%d %d %d %d\n", res[i].position.y, res[i].position.x, res[i].level, res[i].type);
+  
+  fflush(fd);
 
   fflush(stdout);
 }
