@@ -77,11 +77,6 @@ void BlockSolver::Run()
   }
 
   CalChoice();
-
-  int cost;
-  vector<Tower> res;
-  CalCost(cost, res, tower2build);
-  Output(res);
 }
 
 void BlockSolver::CalChoice()
@@ -97,7 +92,10 @@ void BlockSolver::CalChoice()
 
   GH.CalAllEnemyMovePath();
 
-  const int SIZE[4] = { 128, 128, 128, 128 };
+  int cost, min_cost = INF;
+  vector<Tower> res, best_res;
+
+  const int SIZE[4] = { 64, 64, 64, 64 };
 
   for (int i = 0; i < 4; ++i) {
     for (int j = 0; j < SIZE[i]; ++j) {
@@ -112,11 +110,17 @@ void BlockSolver::CalChoice()
 
       MatchChecker::Instance().Init(enemy_info, tower2build, min(2, player_life));
       MatchChecker::Instance().Run();
-      if (MatchChecker::Instance().IsWin()) return;
+      if (MatchChecker::Instance().IsWin()) {
+	CalCost(cost, res, tower2build);
+	if (cost < min_cost) {
+	  min_cost = cost;
+	  best_res = res;
+	}
+      }
     }
   }
 
-  if (!MatchChecker::Instance().IsWin()) while(1);
+  Output(best_res);
 }
 
 void BlockSolver::CalCost(int &cost, vector<Tower> &res, vector<Tower>& tower2build)
@@ -128,16 +132,20 @@ void BlockSolver::CalCost(int &cost, vector<Tower> &res, vector<Tower>& tower2bu
     int y = tower2build[i].position.y;
     int lev = tower2build[i].level;
     int ty = tower2build[i].type;
-    if (mp_tower[x][y] != -1) {
-      int mlev = mp_tower[x][y] >> 2;
-      int mty = mp_tower[x][y] & 3;
-      if (mty != ty || mlev < lev) {
+
+    int mlev = mp_tower[x][y] >> 2;
+    int mty = mp_tower[x][y] & 3;
+    if (mp_tower[x][y] == -1) {
+      cost += tower2build[i].BuildCost();
+      res.push_back(tower2build[i]);
+    } else  {
+      if (mty != ty) {
+	cost += tower2build[i].BuildCost();
+	res.push_back(tower2build[i]);
+      } else if (mlev < lev) {
 	cost += tower2build[i].BuildCost() - Tower::BuildCost(mlev, mty);
 	res.push_back(tower2build[i]);
       }
-    } else {
-      cost += tower2build[i].BuildCost();
-      res.push_back(tower2build[i]);
     }
   }
 }
