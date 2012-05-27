@@ -1,2 +1,2 @@
 all:
-	g++ ai.cpp BlockSolver.cpp Comm.cpp -g
+	g++ ai.cpp BlockSolver.cpp Comm.cpp -Wall -g

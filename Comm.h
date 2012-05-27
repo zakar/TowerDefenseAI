@@ -34,7 +34,7 @@ struct Tower
 {
   Tower(){}
   Tower(int lev, int ty, int x, int y):level(lev),type(ty),position(x,y){}
-  int RebuildCost(int lev, int ty);
+  static int BuildCost(int level, int type);
   int BuildCost();
   int Attack();
   int Range();
@@ -104,10 +104,11 @@ struct GridHandler
 struct MatchChecker
 {
   struct EnemyInfo {
-    EnemyInfo(const Enemy& info, vector<Vec2>& path, const string& instruction) {
+    EnemyInfo(const Enemy& info, const vector<Vec2>& path, const string& instruction) {
       this->path = path;
       this->info = info;
       this->instruction = instruction;
+      ins_len = instruction.size();
       cur_position = info.position;
       wait_time = info.occur_time;
       remain_life = info.life;
@@ -124,26 +125,28 @@ struct MatchChecker
     Vec2 cur_position;
     int ins_idx;
     string instruction;
+    int ins_len;
   };
 
   struct TowerInfo
   {
     TowerInfo(const Tower& info, int enemy_size) {
+      enemy_enter_time.clear();
       enemy_enter_time = vector<int>(enemy_size, INF);
       this->info = info;
-      wait_time = 1;
-      target = NULL;
+      wait_time = 0;
+      target = -1;
     }
-    int FindTarget(vector<EnemyInfo> &cur_enemy);
+    int FindTarget(const vector<EnemyInfo> &cur_enemy);
 
     Tower info;
     int wait_time;
-    EnemyInfo *target;
+    int target;
     vector<int> enemy_enter_time;
   };
 
   static MatchChecker &Instance();
-  void Init(vector<Enemy> & enemy, vector<Tower> &tower, int player_life);
+  void Init(const vector<Enemy> & enemy, const vector<Tower> &tower, int player_life);
   void Run();
 
   int IsWin();

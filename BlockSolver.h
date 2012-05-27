@@ -9,6 +9,9 @@ struct BlockSolver
   void Init();
   void Run();
   void CalRoute();
+  void CalChoice();
+  void CalCost(int &cost, vector<Tower> &res, vector<Tower>& tower2build);
+  void Output(vector<Tower>& res);
 
   int mp_tower[MAXN][MAXN];
   vector<Tower> tower_info;
@@ -35,22 +38,24 @@ struct BlockSolver
   int RoutePreDo();
   int RouteAnalysis();
 
-  struct Spot
+  struct PassedGridInfo
   {
-    Spot(){}
-    Spot(int x, int y):position(x,y),score(0){}
+  PassedGridInfo(int x, int y):position(x,y){}
     Vec2 position;
-    int mask;
-    int score;
-    bool operator < (const Spot &p) const
+    long long mask;
+    int mask_cnt;
+    int max_dist;
+    bool operator < (const PassedGridInfo &p) const
     {
-      return score > p.score;
+      return mask_cnt > p.mask_cnt || (mask_cnt == p.mask_cnt && max_dist > p.max_dist);
     }
   };
 
   int best_score;
+  int grid_rank[MAXN][MAXN];
+  int grid_mask[MAXN][MAXN];
+  vector<PassedGridInfo> grid2build;
   vector<Tower> tower2build;
-  Vec2 door_left, door_right;
   
   Vec2 up, down, left, right, mid;
   int mx, my;

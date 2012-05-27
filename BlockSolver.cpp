@@ -1,4 +1,5 @@
 #include "BlockSolver.h"
+#include <assert.h>
 
 #define GH GridHandler::Instance()
 
@@ -45,22 +46,22 @@ void BlockSolver::Init()
   enemy_all_path.clear();
   enemy_all_block_near.clear();
 
-  for (int i = 0; i < enemy_entry.size(); ++i) {
+  for (size_t i = 0; i < enemy_entry.size(); ++i) {
     enemy_block_near.push_back(vector<Vec2>());
     enemy_path.push_back(vector<Vec2>());
   }
-  for (int i = 0; i < defend_entry.size(); ++i) {
+  for (size_t i = 0; i < defend_entry.size(); ++i) {
     defend_block_near.push_back(vector<Vec2>());
   }
 
   GH.SetBlock(enemy_entry, 'e');
   GH.SetBlock(defend_entry, 'd');
 
-  for (int i = 0; i < enemy_entry.size(); ++i) {
+  for (size_t i = 0; i < enemy_entry.size(); ++i) {
     GH.CalNearBlockable(vector<Vec2>(1, enemy_entry[i]), enemy_block_near[i]);
   }
 
-  for (int i = 0; i < defend_entry.size(); ++i) {
+  for (size_t i = 0; i < defend_entry.size(); ++i) {
     GH.CalNearBlockable(vector<Vec2>(1, defend_entry[i]), defend_block_near[i]);
   }
 
@@ -73,22 +74,80 @@ void BlockSolver::Run()
   if (init_tower_cnt == 0) {
     CalRoute();
     Debug();
-
-    printf("%d\n", tower2build.size());
-
-    Vec2 p;
-    for (int i = 0; i < tower2build.size(); ++i) {
-      p = tower2build[i].position;
-      if (p == door_left || p == door_right) {
-	printf("%d %d %d %d\n", p.y, p.x, 4, 1);
-      } else {
-	printf("%d %d %d %d\n", p.y, p.x, 0, 0);
-      }
-    }
-  } else {
-    puts("0");
   }
-  
+
+  CalChoice();
+
+  int cost;
+  vector<Tower> res;
+  CalCost(cost, res, tower2build);
+  Output(res);
+}
+
+void BlockSolver::CalChoice()
+{
+  RouteClear();
+
+  for (size_t i = 0; i < grid2build.size(); ++i) {
+    Vec2 &p = grid2build[i].position;
+    GH.grid_info[p.x][p.y] = 't';
+  }
+
+  //  GH.Debug();
+
+  GH.CalAllEnemyMovePath();
+
+  const int SIZE[4] = { 128, 128, 128, 128 };
+
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < SIZE[i]; ++j) {
+      tower2build.clear();
+      int limit = min(j, (int)grid2build.size());
+
+      for (int l = 0; l < limit; ++l) 
+	tower2build.push_back(Tower(i, 1, grid2build[l].position.x, grid2build[l].position.y));
+
+      for (size_t l = limit; l < grid2build.size(); ++l)
+	tower2build.push_back(Tower(0, 0, grid2build[l].position.x, grid2build[l].position.y));
+
+      MatchChecker::Instance().Init(enemy_info, tower2build, min(2, player_life));
+      MatchChecker::Instance().Run();
+      if (MatchChecker::Instance().IsWin()) return;
+    }
+  }
+
+  if (!MatchChecker::Instance().IsWin()) while(1);
+}
+
+void BlockSolver::CalCost(int &cost, vector<Tower> &res, vector<Tower>& tower2build)
+{
+  res.clear();
+  cost = 0;
+  for (size_t i = 0; i < tower2build.size(); ++i) {
+    int x = tower2build[i].position.x;
+    int y = tower2build[i].position.y;
+    int lev = tower2build[i].level;
+    int ty = tower2build[i].type;
+    if (mp_tower[x][y] != -1) {
+      int mlev = mp_tower[x][y] >> 2;
+      int mty = mp_tower[x][y] & 3;
+      if (mty != ty || mlev < lev) {
+	cost += tower2build[i].BuildCost() - Tower::BuildCost(mlev, mty);
+	res.push_back(tower2build[i]);
+      }
+    } else {
+      cost += tower2build[i].BuildCost();
+      res.push_back(tower2build[i]);
+    }
+  }
+}
+
+void BlockSolver::Output(vector<Tower>& res)
+{
+  printf("%d\n", res.size());
+  for (size_t i = 0; i < res.size(); ++i) 
+    printf("%d %d %d %d\n", res[i].position.y, res[i].position.x, res[i].level, res[i].type);
+
   fflush(stdout);
 }
 
@@ -97,28 +156,28 @@ void BlockSolver::CalRoute()
   string tmp;
 
   best_score = 0;
-  for (int l = 0; l < defend_entry.size(); ++l) {
+  for (size_t l = 0; l < defend_entry.size(); ++l) {
     
     RouteInit();
   reenter:
     while (RouteIter()) {      
 
-      for (int i = 0; i < defend_block_near.size(); ++i) GH.SetBlock(defend_block_near[i], 't');
-      for (int i = 0; i < enemy_block_near.size(); ++i) GH.SetBlock(enemy_block_near[i], 't');
+      for (size_t i = 0; i < defend_block_near.size(); ++i) GH.SetBlock(defend_block_near[i], 't');
+      for (size_t i = 0; i < enemy_block_near.size(); ++i) GH.SetBlock(enemy_block_near[i], 't');
       GH.UnSetBlock(defend_block_near[l]);
 
       //      GH.Debug();
 
       if (GH.CalMovePath(goal_dst, vector<Vec2>(1, defend_entry[l]), goal_path, tmp)) goto reenter;
       GH.SetBlock(goal_path, 'e');
-      for (int i = 0; i < enemy_entry.size(); ++i) GH.UnSetBlock(enemy_block_near[i]);
+      for (size_t i = 0; i < enemy_entry.size(); ++i) GH.UnSetBlock(enemy_block_near[i]);
       GH.CalNearBlockable(goal_path, goal_near_block);
       GH.SetBlock(goal_near_block, 't');
 
       //      GH.Debug();
 
       enemy_all_path.clear();
-      for (int i = 0; i < enemy_entry.size(); ++i) {
+      for (size_t i = 0; i < enemy_entry.size(); ++i) {
 	if (GH.CalMovePath(enemy_entry[i], vector<Vec2>(1, enemy_dst), enemy_path[i], tmp)) goto reenter;
 	GH.GetUnion(enemy_all_path, enemy_path[i]);
       }
@@ -149,12 +208,15 @@ int BlockSolver::RouteClear()
   for (int i = 0; i < H; ++i)
     for (int j = 0; j < W; ++j) 
       if (GH.grid_info[i][j] != '1') GH.grid_info[i][j] = '0';
+
+  return 0;
 }
 
 int BlockSolver::RouteInit()
 {
   mx = 1;
   my = 1;
+  return 0;
 }
 
 int BlockSolver::RouteIter()
@@ -190,31 +252,62 @@ int BlockSolver::RouteIter()
 
 int BlockSolver::RouteAnalysis()
 {
-  if (goal_path.size() > best_score) {
+  if ((int)goal_path.size() > best_score) {
     best_score = goal_path.size();
-    door_left = left;
-    door_right = right;
+    grid2build.clear();
 
-    tower2build.clear();
-    for (int i = 0; i < H; ++i)
-      for (int j = 0; j < W; ++j)
-	if (GH.grid_info[i][j] == 't')
-	  tower2build.push_back(Tower(0, 0, i, j));
+    memset(grid_rank, 0xff, sizeof(grid_rank));
+    memset(grid_mask, 0, sizeof(grid_mask));
+    for (size_t i = 0; i < enemy_entry.size(); ++i) {
+      vector<Vec2>& path = GH.GetEnemyMovePath(enemy_entry[i]);
+      
+      for (size_t j = 0; j < path.size(); ++j) {
+	int x = path[j].x;
+	int y = path[j].y;
+	grid_rank[x][y] = max(grid_rank[x][y], (int)i);
+	grid_mask[x][y] = (1 << i);
+      }
+    }
+
+    for (int i = 0; i < H; ++i) {
+      for (int j = 0; j < W; ++j) {
+	if (GH.grid_info[i][j] != 't') continue;
+	PassedGridInfo p(i, j);
+	p.mask = 0;
+	int min_ti = INF, max_ti = 0;
+
+	for (int l = 0; l < 8; ++l) {
+	  int x = p.position.x + dir[l][0];
+	  int y = p.position.y + dir[l][1];
+	  if (0 <= x && x < H && 0 <= y && y < W) {
+	    if (grid_rank[x][y] != -1) {
+	      min_ti = min(min_ti, grid_rank[x][y]);
+	      max_ti = max(max_ti, grid_rank[x][y]);
+	    }
+	    p.mask |= grid_mask[x][y];
+	  }
+	}
+
+	p.max_dist = max(0, max_ti - min_ti);
+	p.mask_cnt = __builtin_popcount(p.mask);
+	grid2build.push_back(p);
+      }
+    }
   }
+
+  sort(grid2build.begin(), grid2build.end());
+  
+  return 0;
 }
 
 void BlockSolver::Debug()
 {
   RouteClear();
 
-  Vec2 p;
-  for (int i = 0; i < tower2build.size(); ++i) {
-    p = tower2build[i].position;
+  for (size_t i = 0; i < grid2build.size(); ++i) {
+    Vec2 &p = grid2build[i].position;
     GH.grid_info[p.x][p.y] = 't';
   }
-
-  printf("left %d %d\n", door_left.x, door_left.y);
-  printf("right %d %d\n", door_right.x, door_right.y);
 
   GH.Debug();
 
