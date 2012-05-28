@@ -34,14 +34,16 @@ struct BlockSolver
   int player_life, money, init_tower_cnt, init_enemy_cnt;
   int W, H;
 
+  const static int GOAL_CNT = 2;
+
   vector<Vec2> enemy_entry;
   vector<Vec2> defend_entry;
 
   vector< vector<Vec2> > enemy_block_near;
   vector< vector<Vec2> > defend_block_near;
   
-  vector<Vec2> goal_path;
-  vector<Vec2> goal_near_block;
+  vector<Vec2> goal_path[GOAL_CNT];
+  vector<Vec2> goal_near_block[GOAL_CNT];
 
   vector< vector<Vec2> > enemy_path;
   vector<Vec2> enemy_all_path;
@@ -60,10 +62,11 @@ struct BlockSolver
   vector<Tower> tower2build;
 
   int best_score;
-  Vec2 up, down, left, right, mid;
-  int mx, my;
-  Vec2 enemy_dst;
-  Vec2 goal_dst;
+  Vec2 up[GOAL_CNT], down[GOAL_CNT], left[GOAL_CNT], right[GOAL_CNT], mid[GOAL_CNT];
+  int mx[GOAL_CNT], my[GOAL_CNT];
+  Vec2 enemy_dst[GOAL_CNT];
+  Vec2 goal_dst[GOAL_CNT];
+  int iter_count[GOAL_CNT];
 
   void Debug();
   FILE *fd;

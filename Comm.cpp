@@ -147,6 +147,30 @@ int GridHandler::CheckBuildable(const Vec2& grid)
   return CheckBuildable(grid.x, grid.y);
 }
 
+int GridHandler::CheckBlockable(int x, int y)
+{
+  Vec2 p = Vec2(x, y);
+  for (size_t i = 0; i < defend_entry.size(); ++i)
+    if (p == defend_entry[i]) return 0;
+
+  for (size_t i = 0; i < enemy_entry.size(); ++i)
+    if (p == enemy_entry[i]) return 0;
+
+  return 0 <= x && x < H && 0 <= y && y < W && grid_info[x][y] != '1';
+}
+
+int GridHandler::CheckBlockable(const Vec2& grid)
+{
+  Vec2 p = grid;
+  for (size_t i = 0; i < defend_entry.size(); ++i)
+    if (p == defend_entry[i]) return 0;
+
+  for (size_t i = 0; i < enemy_entry.size(); ++i)
+    if (p == enemy_entry[i]) return 0;
+
+  return 0 <= p.x && p.x < H && 0 <= p.y && p.y < W && grid_info[p.x][p.y] != '1';
+}
+
 vector<Vec2>& GridHandler::GetDefendEntry()
 {
   return defend_entry;
@@ -178,7 +202,7 @@ int GridHandler::CalNearBlockable(const vector<Vec2>& near, vector<Vec2>& path)
     for (int l = 0; l < 8; l += 2) {
       x = near[i].x + dir[l][0];
       y = near[i].y + dir[l][1];
-      if (CheckBuildable(x, y)) {
+      if (CheckBlockable(x, y)) {
 	path.push_back(Vec2(x, y));
       }
     }
@@ -395,7 +419,6 @@ MatchChecker &MatchChecker::Instance()
 
 void MatchChecker::Init(const vector<Enemy> &enemy, const vector<Tower> &tower, int player_life)
 {
-  RUNSTATUE = INIT;
   cur_enemy.clear();
   cur_tower.clear();
   cur_time = 0;
@@ -461,8 +484,6 @@ void MatchChecker::Run()
       if (cur_enemy[i].remain_life > 0 && cur_enemy[i].wait_time != INF) ++remain_enemy;
     }
   }
-
-  RUNSTATUE = FINISH;
 }
 
 int MatchChecker::IsWin()
@@ -470,11 +491,7 @@ int MatchChecker::IsWin()
   return player_life > 0;
 }
 
-int MatchChecker::GetEnemyLifeStatu()
+const vector<MatchChecker::EnemyInfo>& MatchChecker::GetEnemyInfo()
 {
-  int res = 0;
-  for (size_t i = 0; i < cur_enemy.size(); ++i) {
-    if (cur_enemy[i].remain_life > 0) res |= (1 << i);
-  }
-  return res;
+  return cur_enemy;
 }

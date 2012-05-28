@@ -58,6 +58,7 @@ struct Enemy
 						  input_rank(R),position(x,y){}
   int occur_time, life, move_time;
   int input_rank;
+  int occur_entry;
   Vec2 position;
 };
 
@@ -83,8 +84,10 @@ struct GridHandler
 
   int CalNearBlockable(const vector<Vec2>& near, vector<Vec2>& path);
 
+  int CheckBlockable(int x, int y);
   int CheckPassable(int x, int y);
   int CheckBuildable(int x, int y);
+  int CheckBlockable(const Vec2& grid);
   int CheckPassable(const Vec2& grid);
   int CheckBuildable(const Vec2& grid);
   
@@ -159,11 +162,8 @@ struct MatchChecker
   vector<EnemyInfo> cur_enemy;
   vector<TowerInfo> cur_tower;
 
-  enum {
-    INIT,
-    FINISH,
-  };
-  int RUNSTATUE;
+
+  const vector<EnemyInfo>& GetEnemyInfo();
 };
 
 
