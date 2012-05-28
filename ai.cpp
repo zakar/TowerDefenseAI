@@ -10,7 +10,7 @@ int main()
     fscanf(stdin, "%d", &L);
     fscanf(stdin, " END");
     for (int k = 0; k < L; ++k) {
-      BlockSolver::Instance().Init();
+      BlockSolver::Instance().Init(l,k);
       BlockSolver::Instance().Run();
     }
   }

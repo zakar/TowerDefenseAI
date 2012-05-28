@@ -21,7 +21,7 @@ struct BlockSolver
 
   BlockSolver();
   static BlockSolver& Instance();
-  void Init();
+  void Init(int stage_ver, int stage_lev);
   void Run();
   void CalRoute();
   void CalChoice();
@@ -32,6 +32,7 @@ struct BlockSolver
   vector<Tower> tower_info;
   vector<Enemy> enemy_info;
   int player_life, money, init_tower_cnt, init_enemy_cnt;
+  int stage_ver, stage_lev;
   int W, H;
 
   const static int GOAL_CNT = 2;

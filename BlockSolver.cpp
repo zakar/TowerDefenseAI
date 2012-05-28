@@ -14,8 +14,11 @@ BlockSolver& BlockSolver::Instance()
   return ins;
 }
 
-void BlockSolver::Init()
+void BlockSolver::Init(int stage_ver, int stage_lev)
 {
+  this->stage_ver = stage_ver;
+  this->stage_lev = stage_lev;
+
   int x, y, a, c, l, t, s;
 
   fscanf(stdin, "%d%d%d%d", &player_life, &money, &init_tower_cnt, &init_enemy_cnt);
@@ -110,39 +113,35 @@ void BlockSolver::Run()
 
 void BlockSolver::CalChoice()
 {
-
-  // for (size_t i = 0; i < enemy_entry.size(); ++i) {
-  //   printf("idx: %d  opt_size: %d\n", i, opt_grid[i].size());
-  // }
-  //   for (size_t j = 0; j < opt_grid[i].size(); ++j)  printf("axis: %d %d\n", opt_grid[i][j].position.x, 
-  // 							    opt_grid[i][j].position.y);
-  // }
-
   int cost, min_cost = INF;
+  vector<Tower> zero_tower;
   vector<Tower> res, best_res;
 
-  const int LIM_CNT = 6;
-  const int LIMIT[LIM_CNT] = { 4, 8, 16, 32, 64, 128 };
+  zero_tower.clear();
+  for (size_t i = 0; i < grid2build.size(); ++i) {
+    Vec2 &p = grid2build[i];
+    zero_tower.push_back(Tower(0, 0, p.x, p.y));
+  }
+
+  tower2build = zero_tower;
+  
+  MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
+  MatchChecker::Instance().Run();
+  if (MatchChecker::Instance().IsWin()) {
+    CalCost(cost, res, tower2build);
+    Output(res);
+    return;
+  }
+  
+
+  const int LIM_CNT = 5;
+  const int LIMIT[LIM_CNT] = { 4, 8, 16, 32, 64 };
 
   int lidx = 0;
   int entry_status;
   for (;;) {
 
-    tower2build.clear();
-    for (size_t i = 0; i < grid2build.size(); ++i) {
-      Vec2 &p = grid2build[i];
-      tower2build.push_back(Tower(0, 0, p.x, p.y));
-    }
-
-    MatchChecker::Instance().Init(enemy_info, tower2build, min(1, player_life));
-    MatchChecker::Instance().Run();
-    if (MatchChecker::Instance().IsWin()) {
-      CalCost(cost, res, tower2build);
-      if (cost < min_cost) {
-	min_cost = cost;
-	best_res = res;
-      }
-    }
+    tower2build = zero_tower;
 
     entry_status = (1 << enemy_entry.size()) - 1;
 
@@ -168,7 +167,7 @@ void BlockSolver::CalChoice()
 
 	}
 
-	MatchChecker::Instance().Init(enemy_info, tower2build, min(2, player_life));
+	MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
 	MatchChecker::Instance().Run();
 	if (MatchChecker::Instance().IsWin()) {
 	  CalCost(cost, res, tower2build);
@@ -214,8 +213,10 @@ void BlockSolver::CalCost(int &cost, vector<Tower> &res, const vector<Tower>& to
       res.push_back(tower2build[i]);
     } else  {
       if (mty != ty) {
-	cost += tower2build[i].BuildCost();
-	res.push_back(tower2build[i]);
+	if (mty < ty) {
+	  cost += tower2build[i].BuildCost();
+	  res.push_back(tower2build[i]);
+	}
       } else if (mlev < lev) {
 	cost += tower2build[i].BuildCost() - Tower::BuildCost(mlev, mty);
 	res.push_back(tower2build[i]);
@@ -323,15 +324,15 @@ int BlockSolver::RouteIter()
 {
   RouteClear();
 
-  const int LIMIT[GOAL_CNT] = { 1000, 50 };
+  const int LIMIT[GOAL_CNT] = { 1000, 45 };
 
   while (mx[0] < H && my[0] < W) {
 
     int idx = GOAL_CNT - 1;
     for (; idx >= 0; --idx) {
       if (mx[idx] < H && my[idx] < W && iter_count[idx] <= LIMIT[idx]) {
-	++my[idx];
-	if (my[idx] == W) { my[idx] = 1; ++mx[idx]; }
+	my[idx] += 2;
+	if (my[idx] >= W) { my[idx] = 1; ++mx[idx]; }
 	++iter_count[idx];
 	break;
       } else {
@@ -383,6 +384,20 @@ int BlockSolver::RouteAnalysis()
     best_score = cur_score;
     grid2build.clear();
 
+    //
+    for (size_t i = 0; i < enemy_block_near.size(); ++i) GH.UnSetBlock(enemy_block_near[i]);
+    for (size_t i = 0; i < defend_block_near.size(); ++i) GH.UnSetBlock(defend_block_near[i]);
+    GH.SetBlock(enemy_all_block_near, 't');
+    for (int i = 0; i < GOAL_CNT; ++i) GH.SetBlock(goal_near_block[i], 't');
+    for (int i = 0; i < GOAL_CNT; ++i) {
+      GH.UnSetBlock(goal_path[i]);
+      GH.UnSetBlock(mid[i]);
+      GH.SetBlock(left[i], 't'); 
+      GH.SetBlock(right[i], 't');
+    }
+    GH.UnSetBlock(enemy_all_path);
+    //
+
     for (int i = 0; i < H; ++i)
       for (int j = 0; j < W; ++j) {
 	if (GH.grid_info[i][j] == 't')  grid2build.push_back(Vec2(i, j));
@@ -425,7 +440,7 @@ int BlockSolver::RouteCalOpt(vector<PassedGridInfo>& opt, const vector<Vec2>& pa
       }
       
       if (min_ti != INF) {
-	p.max_can_recharge = (max_ti - min_ti)/10; //this is useful
+	p.max_can_recharge = (max_ti - min_ti)/20; //this is useful
 	p.route_idx = max_ti;  //this is useful
 	opt.push_back(p);
       }
