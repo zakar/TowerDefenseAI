@@ -134,60 +134,47 @@ void BlockSolver::CalChoice()
   }
   
 
-  const int LIM_CNT = 5;
-  const int LIMIT[LIM_CNT] = { 4, 8, 16, 32, 64 };
+  const int LIMIT = 625;
+  int t2lev[4];
 
-  int lidx = 0;
-  int entry_status;
-  for (;;) {
+  for (int state = 0; state < LIMIT; ++state) {
+
+    for (int tmp = state, i = 0; i < 4; ++i) {
+      t2lev[i] = tmp%5;
+      tmp /= 5;
+    }
 
     tower2build = zero_tower;
 
-    entry_status = (1 << enemy_entry.size()) - 1;
-
-    for (int lev = 0; lev <= 4; ++lev) {
-      for (int idx = 0; idx <= LIMIT[lidx]; ++idx) {
-	
-	for (size_t i = 0; i < enemy_entry.size(); ++i) {
+    for (size_t i = 0; i < enemy_entry.size(); ++i) {
+      int idx = 0;
+    
+      for (int lev = 3; lev >= 0; --lev) {
+	for (int len = 0; len < t2lev[lev]; ++len) {
 	  if ((int)opt_grid[i].size() <= idx) continue;
-
-	  if (entry_status & (1 << i)) {
-
-	    Vec2 &p = opt_grid[i][idx].position;
-	    Tower tw = Tower(lev, 1, p.x, p.y);
-	    for (size_t j = 0; j < tower2build.size(); ++j) {
-	      if (tower2build[j].position == tw.position && tower2build[j].CheckDiff(tw)) {
-		tower2build.erase(tower2build.begin()+j);
-		tower2build.push_back(tw);
-		break;
-	      }
+	  Vec2 &p = opt_grid[i][idx].position;
+	  Tower tw = Tower(lev, 1, p.x, p.y);
+	  for (size_t j = 0; j < tower2build.size(); ++j) {
+	    if (tower2build[j].position == tw.position && tower2build[j].CheckDiff(tw)) {
+	      tower2build.erase(tower2build.begin()+j);
+	      tower2build.push_back(tw);
+	      break;
 	    }
-
 	  }
-
-	}
-
-	MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
-	MatchChecker::Instance().Run();
-	if (MatchChecker::Instance().IsWin()) {
-	  CalCost(cost, res, tower2build);
-	  if (cost < min_cost) {
-	    min_cost = cost;
-	    best_res = res;
-	  }
-	  goto nextlimit;
-	}
-
-	entry_status = 0;
-	const vector<MatchChecker::EnemyInfo>& ef = MatchChecker::Instance().GetEnemyInfo();
-	for (size_t i = 0; i < ef.size(); ++i) {
-	  if (ef[i].remain_life > 0) entry_status |= (1 << ef[i].info.occur_entry);
+	  ++idx;
 	}
       }
     }
 
-  nextlimit:
-    if (++lidx >= LIM_CNT) break;
+    MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
+    MatchChecker::Instance().Run();
+    if (MatchChecker::Instance().IsWin()) {
+      CalCost(cost, res, tower2build);
+      if (cost < min_cost) {
+	min_cost = cost;
+	best_res = res;
+      }
+    }
   }
 
   if (!MatchChecker::Instance().IsWin()) while(1);
@@ -324,14 +311,14 @@ int BlockSolver::RouteIter()
 {
   RouteClear();
 
-  const int LIMIT[GOAL_CNT] = { 1000, 45 };
+  const int LIMIT[GOAL_CNT] = { 1000, 40 };//canshu-_-
 
   while (mx[0] < H && my[0] < W) {
 
     int idx = GOAL_CNT - 1;
     for (; idx >= 0; --idx) {
       if (mx[idx] < H && my[idx] < W && iter_count[idx] <= LIMIT[idx]) {
-	my[idx] += 2;
+	my[idx] += 2; //canshu-_-
 	if (my[idx] >= W) { my[idx] = 1; ++mx[idx]; }
 	++iter_count[idx];
 	break;
@@ -438,9 +425,20 @@ int BlockSolver::RouteCalOpt(vector<PassedGridInfo>& opt, const vector<Vec2>& pa
 	  }
 	}
       }
+
+      for (int l = 0; l < 4; l+=2) {
+      	int x = p.position.x + 2*dir[l][0];
+      	int y = p.position.y + 2*dir[l][1];
+      	if (0 <= x && x < H && 0 <= y && y < W) {
+      	  if (grid_rank[x][y] != -1) {
+      	    min_ti = min(min_ti, grid_rank[x][y]);
+      	    max_ti = max(max_ti, grid_rank[x][y]);
+      	  }
+      	}
+      }
       
       if (min_ti != INF) {
-	p.max_can_recharge = (max_ti - min_ti)/20; //this is useful
+	p.max_can_recharge = (max_ti - min_ti)/20; //this is useful  canshu-_-
 	p.route_idx = max_ti;  //this is useful
 	opt.push_back(p);
       }
