@@ -134,12 +134,12 @@ void BlockSolver::CalChoice()
   }
   
 
-  const int LIMIT = 625;
+  const int LIMIT = 3125;
   int t2lev[4];
 
   for (int state = 0; state < LIMIT; ++state) {
 
-    for (int tmp = state, i = 0; i < 4; ++i) {
+    for (int tmp = state, i = 0; i < 5; ++i) {
       t2lev[i] = tmp%5;
       tmp /= 5;
     }
@@ -149,7 +149,7 @@ void BlockSolver::CalChoice()
     for (size_t i = 0; i < enemy_entry.size(); ++i) {
       int idx = 0;
     
-      for (int lev = 3; lev >= 0; --lev) {
+      for (int lev = 4; lev >= 0; --lev) {
 	for (int len = 0; len < t2lev[lev]; ++len) {
 	  if ((int)opt_grid[i].size() <= idx) continue;
 	  Vec2 &p = opt_grid[i][idx].position;
@@ -173,6 +173,7 @@ void BlockSolver::CalChoice()
       if (cost < min_cost) {
 	min_cost = cost;
 	best_res = res;
+	break;
       }
     }
   }
