@@ -128,6 +128,7 @@ void BlockSolver::CalChoice()
   MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
   MatchChecker::Instance().Run();
   if (MatchChecker::Instance().IsWin()) {
+
     CalCost(cost, res, tower2build);
     Output(res);
     return;
@@ -169,11 +170,12 @@ void BlockSolver::CalChoice()
     MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
     MatchChecker::Instance().Run();
     if (MatchChecker::Instance().IsWin()) {
+
       CalCost(cost, res, tower2build);
       if (cost < min_cost) {
 	min_cost = cost;
 	best_res = res;
-	break;
+	//break;
       }
     }
   }
@@ -312,14 +314,14 @@ int BlockSolver::RouteIter()
 {
   RouteClear();
 
-  const int LIMIT[GOAL_CNT] = { 1000, 40 };//canshu-_-
+  const int LIMIT[GOAL_CNT] = { 1000, 50 };//canshu-_-
 
   while (mx[0] < H && my[0] < W) {
 
     int idx = GOAL_CNT - 1;
     for (; idx >= 0; --idx) {
       if (mx[idx] < H && my[idx] < W && iter_count[idx] <= LIMIT[idx]) {
-	my[idx] += 2; //canshu-_-
+	my[idx] += 1; //canshu-_-
 	if (my[idx] >= W) { my[idx] = 1; ++mx[idx]; }
 	++iter_count[idx];
 	break;
@@ -394,6 +396,7 @@ int BlockSolver::RouteAnalysis()
     for (size_t i = 0; i < enemy_entry.size(); ++i) {
       RouteCalOpt(opt_grid[i], GH.GetEnemyMovePath(enemy_entry[i]));
     }
+
   }
   
   return 0;

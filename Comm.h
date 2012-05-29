@@ -140,12 +140,14 @@ struct MatchChecker
       this->info = info;
       wait_time = 0;
       target = -1;
+      attack_cnt = 0;
     }
     int FindTarget(const vector<EnemyInfo> &cur_enemy);
 
     Tower info;
     int wait_time;
     int target;
+    int attack_cnt;
     vector<int> enemy_enter_time;
   };
 
@@ -164,6 +166,7 @@ struct MatchChecker
 
 
   const vector<EnemyInfo>& GetEnemyInfo();
+  const vector<TowerInfo>& GetTowerInfo();
 };
 
 

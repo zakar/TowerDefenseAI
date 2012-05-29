@@ -467,6 +467,7 @@ void MatchChecker::Run()
 
       int target = cur_tower[i].target;
       if (target != -1) {
+	cur_tower[i].attack_cnt += 1;
 	cur_tower[i].wait_time = cur_tower[i].info.ReCharge()+1;
 	cur_enemy[target].remain_life -= cur_tower[i].info.Attack();
 	cur_enemy[target].wait_time += cur_tower[i].info.StopTime();
@@ -494,4 +495,9 @@ int MatchChecker::IsWin()
 const vector<MatchChecker::EnemyInfo>& MatchChecker::GetEnemyInfo()
 {
   return cur_enemy;
+}
+
+const vector<MatchChecker::TowerInfo>& MatchChecker::GetTowerInfo()
+{
+  return cur_tower;
 }
