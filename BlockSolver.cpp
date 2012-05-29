@@ -130,7 +130,7 @@ void BlockSolver::CalChoice()
 
   tower2build = zero_tower;
   
-  MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 230)+1, player_life));
+  MatchChecker::Instance().Init(enemy_info, tower2build, min(/*(stage_ver > 241)*/+1, player_life));
   MatchChecker::Instance().Run();
   if (MatchChecker::Instance().IsWin()) {
     CalCost(cost, res, tower2build);
@@ -139,13 +139,17 @@ void BlockSolver::CalChoice()
   }
 
   const int LIMIT = 3125;
-  int t2lev[4];
+  int t2lev[5];
 
-  for (int state = 0; state < LIMIT; ++state) {
-
-    for (int tmp = state, i = 0; i < 5; ++i) {
-      t2lev[i] = tmp%5;
-      tmp /= 5;
+  for (int state = 0;;++state) {
+    //  for (int state = 0; state < LIMIT; ++state) {
+    if (state >= LIMIT) {
+      ++t2lev[4];
+    } else {
+      for (int tmp = state, i = 0; i < 5; ++i) {
+	t2lev[i] = tmp%5;
+	tmp /= 5;
+      }
     }
 
     tower2build = zero_tower;
@@ -158,6 +162,7 @@ void BlockSolver::CalChoice()
 	Tower tw = Tower(lev, 1, p.x, p.y);
 	for (size_t j = 0; j < tower2build.size(); ++j) {
 	  if (tower2build[j].position == tw.position && tower2build[j].CheckDiff(tw)) {
+	    //	    if (t2lev[4] == 7 && lev == 4) printf("yes %d\n", j);
 	    tower2build.erase(tower2build.begin()+j);
 	    tower2build.push_back(tw);
 	    break;
@@ -167,7 +172,7 @@ void BlockSolver::CalChoice()
       }
     }
 
-    MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 230)+1, player_life));
+    MatchChecker::Instance().Init(enemy_info, tower2build, min(/*(stage_ver > 241)*/+1, player_life));
     MatchChecker::Instance().Run();
     if (MatchChecker::Instance().IsWin()) {
 
@@ -175,12 +180,21 @@ void BlockSolver::CalChoice()
       if (cost < min_cost) {
 	min_cost = cost;
 	best_res = res;
+
+	// puts("res:");
+	// for (size_t k = 0; k < res.size(); ++k) printf("type: %d\n", res[k].type);
+
+	// printf("t2lev: ");
+	// for (int k = 0; k < 5; ++k) printf("%d ", t2lev[k]);
+	// printf("idx: %d\n", idx);
+	// puts("");
+	// printf("state: %d\n", state);
 	break;
       }
     }
   }
 
-  if (!MatchChecker::Instance().IsWin()) while(1);
+  //  if (!MatchChecker::Instance().IsWin()) while(1);
 
   //  printf("min_cost: %d\n", min_cost);
   Output(best_res);
@@ -188,7 +202,13 @@ void BlockSolver::CalChoice()
 
 void BlockSolver::CalCost(int &cost, vector<Tower> &res, const vector<Tower>& tower2build)
 {
+  // puts("tower2build:");
+  // for (size_t i = 0; i < tower2build.size(); ++i) 
+  //   printf("type %d\n", tower2build[i].type);
+  
   res.clear();
+
+  //  printf("tower2build_size: %d\n", tower2build.size());
   cost = 0;
   for (size_t i = 0; i < tower2build.size(); ++i) {
     int x = tower2build[i].position.x;
@@ -198,6 +218,8 @@ void BlockSolver::CalCost(int &cost, vector<Tower> &res, const vector<Tower>& to
 
     int mlev = mp_tower[x][y] >> 2;
     int mty = mp_tower[x][y] & 3;
+
+    //    printf("lev ty: %d %d %d %d\n", lev, ty, mlev, mty);
     if (mp_tower[x][y] == -1) {
       cost += tower2build[i].BuildCost();
       res.push_back(tower2build[i]);
@@ -488,7 +510,8 @@ int BlockSolver::RouteCalOpt(vector<PassedGridInfo>& cur_opt, int &cur_score, co
 int BlockSolver::RouteCalGridForType2(vector<Vec2> &gridtype2, const vector<Vec2>& grid)
 {
   gridtype2.clear();
-  for (int i = goal_path[0].size()-3; i >= 0; --i) {
+
+  for (int i = goal_path[0].size()-3; i >= 0; i -= 1) {
     Vec2 &p = goal_path[0][i];
     int cnt = 0;
     gridtype2.clear();
@@ -520,13 +543,14 @@ void BlockSolver::Debug()
     GH.grid_info[p.x][p.y] = 'b';
   }
 
-  puts("opt_gtid:");
-  for (size_t i = 0; i < opt_grid.size(); ++i)  
-    printf("%d %d %d %d %d idx: %d %d %d %d\n", opt_grid[i].position.x, opt_grid[i].position.y, opt_grid[i].max_can_recharge,
-  	   opt_grid[i].min_ti, opt_grid[i].max_ti, opt_grid[i].min_idx.x, opt_grid[i].min_idx.y, opt_grid[i].max_idx.x, opt_grid[i].max_idx.y);
+//   puts("opt_gtid:");
+//   for (size_t i = 0; i < opt_grid.size(); ++i)  
+//     printf("%d %d %d %d %d idx: %d %d %d %d\n", opt_grid[i].position.x, opt_grid[i].position.y, opt_grid[i].max_can_recharge,
+//   	   opt_grid[i].min_ti, opt_grid[i].max_ti, opt_grid[i].min_idx.x, opt_grid[i].min_idx.y, opt_grid[i].max_idx.x, 
+// opt_grid[i].max_idx.y);
 
 
-  for (int i = 0; i < GOAL_CNT; ++i) printf("mid[%d]: %d %d\n", i, used_mid[i].x, used_mid[i].y);
+//   for (int i = 0; i < GOAL_CNT; ++i) printf("mid[%d]: %d %d\n", i, used_mid[i].x, used_mid[i].y);
   
   GH.Debug();
 
