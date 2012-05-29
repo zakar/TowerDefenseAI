@@ -11,6 +11,11 @@ struct BlockSolver
     Vec2 position;
     int max_can_recharge;
     int route_idx;
+
+    //for debug
+    Vec2 min_idx, max_idx;
+    int min_ti, max_ti;
+
     bool operator < (const PassedGridInfo &p) const
     {
       return max_can_recharge > p.max_can_recharge ||
@@ -32,7 +37,6 @@ struct BlockSolver
   vector<Tower> tower_info;
   vector<Enemy> enemy_info;
   int player_life, money, init_tower_cnt, init_enemy_cnt;
-  int stage_ver, stage_lev;
   int W, H;
 
   const static int GOAL_CNT = 2;
@@ -54,20 +58,27 @@ struct BlockSolver
   int RouteInit();
   int RouteIter();
   int RouteAnalysis();
-  int RouteCalOpt(vector<PassedGridInfo>& opt, const vector<Vec2>& path);
+  int RouteCalOpt(vector<PassedGridInfo>& cur_opt, int &cur_score, const vector<Vec2> &grid);
+  int RouteCalGridForType2(vector<Vec2> &gridtype2, const vector<Vec2>& grid);
+  int RouteCalGrid2Build(vector<Vec2>& grid);
 
   int grid_rank[MAXN][MAXN];
-  vector< vector<PassedGridInfo> > opt_grid;
+  vector<PassedGridInfo> opt_grid;
   vector<Vec2> grid2build;
+  vector<Vec2> grid_for_type_1;
+  vector<Vec2> grid_for_type_2;
 
   vector<Tower> tower2build;
 
   int best_score;
+  int stage_ver, stage_lev;
+  int iter_count[GOAL_CNT];
   Vec2 up[GOAL_CNT], down[GOAL_CNT], left[GOAL_CNT], right[GOAL_CNT], mid[GOAL_CNT];
   int mx[GOAL_CNT], my[GOAL_CNT];
   Vec2 enemy_dst[GOAL_CNT];
   Vec2 goal_dst[GOAL_CNT];
-  int iter_count[GOAL_CNT];
+
+  Vec2 used_mid[GOAL_CNT];
 
   void Debug();
   FILE *fd;

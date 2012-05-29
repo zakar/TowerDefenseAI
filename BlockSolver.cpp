@@ -56,6 +56,7 @@ void BlockSolver::Init(int stage_ver, int stage_lev)
     enemy_entry = GridHandler::Instance().GetEnemyEntry();
     defend_entry = GridHandler::Instance().GetDefendEntry();
 
+    grid2build.clear();
     enemy_block_near.clear();
     defend_block_near.clear();
     enemy_path.clear();
@@ -71,7 +72,6 @@ void BlockSolver::Init(int stage_ver, int stage_lev)
     for (size_t i = 0; i < enemy_entry.size(); ++i) {
       enemy_block_near.push_back(vector<Vec2>());
       enemy_path.push_back(vector<Vec2>());
-      opt_grid.push_back(vector<BlockSolver::PassedGridInfo>());
     }
     for (size_t i = 0; i < defend_entry.size(); ++i) {
       defend_block_near.push_back(vector<Vec2>());
@@ -118,22 +118,25 @@ void BlockSolver::CalChoice()
   vector<Tower> res, best_res;
 
   zero_tower.clear();
-  for (size_t i = 0; i < grid2build.size(); ++i) {
-    Vec2 &p = grid2build[i];
+  for (size_t i = 0; i < grid_for_type_1.size(); ++i) {
+    Vec2 &p = grid_for_type_1[i];
     zero_tower.push_back(Tower(0, 0, p.x, p.y));
+  }
+
+  for (size_t i = 0; i < grid_for_type_2.size(); ++i) {
+    Vec2 &p = grid_for_type_2[i];
+    zero_tower.push_back(Tower(1, 2, p.x, p.y));
   }
 
   tower2build = zero_tower;
   
-  MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
+  MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 230)+1, player_life));
   MatchChecker::Instance().Run();
   if (MatchChecker::Instance().IsWin()) {
-
     CalCost(cost, res, tower2build);
     Output(res);
     return;
   }
-  
 
   const int LIMIT = 3125;
   int t2lev[4];
@@ -147,27 +150,24 @@ void BlockSolver::CalChoice()
 
     tower2build = zero_tower;
 
-    for (size_t i = 0; i < enemy_entry.size(); ++i) {
-      int idx = 0;
-    
-      for (int lev = 4; lev >= 0; --lev) {
-	for (int len = 0; len < t2lev[lev]; ++len) {
-	  if ((int)opt_grid[i].size() <= idx) continue;
-	  Vec2 &p = opt_grid[i][idx].position;
-	  Tower tw = Tower(lev, 1, p.x, p.y);
-	  for (size_t j = 0; j < tower2build.size(); ++j) {
-	    if (tower2build[j].position == tw.position && tower2build[j].CheckDiff(tw)) {
-	      tower2build.erase(tower2build.begin()+j);
-	      tower2build.push_back(tw);
-	      break;
-	    }
+    int idx = 0;
+    for (int lev = 4; lev >= 0; --lev) {
+      for (int len = 0; len < t2lev[lev]; ++len) {
+	if ((int)opt_grid.size() <= idx) continue;
+	Vec2 &p = opt_grid[idx].position;
+	Tower tw = Tower(lev, 1, p.x, p.y);
+	for (size_t j = 0; j < tower2build.size(); ++j) {
+	  if (tower2build[j].position == tw.position && tower2build[j].CheckDiff(tw)) {
+	    tower2build.erase(tower2build.begin()+j);
+	    tower2build.push_back(tw);
+	    break;
 	  }
-	  ++idx;
 	}
+	++idx;
       }
     }
 
-    MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 200)+1, player_life));
+    MatchChecker::Instance().Init(enemy_info, tower2build, min((stage_ver > 230)+1, player_life));
     MatchChecker::Instance().Run();
     if (MatchChecker::Instance().IsWin()) {
 
@@ -175,7 +175,7 @@ void BlockSolver::CalChoice()
       if (cost < min_cost) {
 	min_cost = cost;
 	best_res = res;
-	//break;
+	break;
       }
     }
   }
@@ -314,14 +314,14 @@ int BlockSolver::RouteIter()
 {
   RouteClear();
 
-  const int LIMIT[GOAL_CNT] = { 1000, 50 };//canshu-_-
+  const int LIMIT[GOAL_CNT] = { 1000, 45 };//canshu-_-
 
   while (mx[0] < H && my[0] < W) {
 
     int idx = GOAL_CNT - 1;
     for (; idx >= 0; --idx) {
       if (mx[idx] < H && my[idx] < W && iter_count[idx] <= LIMIT[idx]) {
-	my[idx] += 1; //canshu-_-
+	my[idx] += 2; //canshu-_-
 	if (my[idx] >= W) { my[idx] = 1; ++mx[idx]; }
 	++iter_count[idx];
 	break;
@@ -365,92 +365,144 @@ int BlockSolver::RouteIter()
   return my[0] < W && mx[0] < H;
 }
 
+int BlockSolver::RouteCalGrid2Build(vector<Vec2>& grid)
+{
+  //
+  for (size_t i = 0; i < enemy_block_near.size(); ++i) GH.UnSetBlock(enemy_block_near[i]);
+  for (size_t i = 0; i < defend_block_near.size(); ++i) GH.UnSetBlock(defend_block_near[i]);
+  GH.SetBlock(enemy_all_block_near, 't');
+  for (int i = 0; i < GOAL_CNT; ++i) GH.SetBlock(goal_near_block[i], 't');
+  for (int i = 0; i < GOAL_CNT; ++i) {
+    GH.UnSetBlock(goal_path[i]);
+    GH.UnSetBlock(mid[i]);
+    GH.SetBlock(left[i], 't'); 
+    GH.SetBlock(right[i], 't');
+  }
+  GH.UnSetBlock(enemy_all_path);
+  //
+  
+  grid.clear();
+  for (int i = 0; i < H; ++i)
+    for (int j = 0; j < W; ++j) {
+      if (GH.grid_info[i][j] == 't')  grid.push_back(Vec2(i, j));
+    }
+
+  return 0;
+}
+
 int BlockSolver::RouteAnalysis()
 {
-  int cur_score = 0;
-  for (int i = 0; i < GOAL_CNT; ++i) cur_score += goal_path[i].size();
-  
+  int cur_score;
+  vector<PassedGridInfo> cur_opt;
+  vector<Vec2> cur_grid;
+  vector<Vec2> cur_grid_for_type_2;
+  vector<Vec2> cur_grid_for_type_1;
+
+  RouteCalGrid2Build(cur_grid);
+  RouteCalGridForType2(cur_grid_for_type_2, cur_grid);
+
+  cur_grid_for_type_1 = cur_grid;
+  // eliminate type 2 grid
+  for (size_t i = 0; i < cur_grid_for_type_2.size(); ++i) {
+    for (size_t j = 0; j < cur_grid_for_type_1.size(); ++j) {
+      if (cur_grid_for_type_1[j] == cur_grid_for_type_2[i]) { 
+	cur_grid_for_type_1.erase(cur_grid_for_type_1.begin() + j); 
+	break; 
+      }
+    }
+  }
+
+  RouteCalOpt(cur_opt, cur_score, cur_grid_for_type_1);
+
   if (cur_score > best_score) {
     best_score = cur_score;
-    grid2build.clear();
-
-    //
-    for (size_t i = 0; i < enemy_block_near.size(); ++i) GH.UnSetBlock(enemy_block_near[i]);
-    for (size_t i = 0; i < defend_block_near.size(); ++i) GH.UnSetBlock(defend_block_near[i]);
-    GH.SetBlock(enemy_all_block_near, 't');
-    for (int i = 0; i < GOAL_CNT; ++i) GH.SetBlock(goal_near_block[i], 't');
-    for (int i = 0; i < GOAL_CNT; ++i) {
-      GH.UnSetBlock(goal_path[i]);
-      GH.UnSetBlock(mid[i]);
-      GH.SetBlock(left[i], 't'); 
-      GH.SetBlock(right[i], 't');
-    }
-    GH.UnSetBlock(enemy_all_path);
-    //
-
-    for (int i = 0; i < H; ++i)
-      for (int j = 0; j < W; ++j) {
-	if (GH.grid_info[i][j] == 't')  grid2build.push_back(Vec2(i, j));
-      }
-
-    for (size_t i = 0; i < enemy_entry.size(); ++i) {
-      RouteCalOpt(opt_grid[i], GH.GetEnemyMovePath(enemy_entry[i]));
-    }
-
+    grid2build = cur_grid;
+    opt_grid = cur_opt;
+    grid_for_type_1 = cur_grid_for_type_1;
+    grid_for_type_2 = cur_grid_for_type_2;
+    for (int i = 0; i < GOAL_CNT; ++i) used_mid[i] = mid[i];
   }
   
   return 0;
 }
 
-int BlockSolver::RouteCalOpt(vector<PassedGridInfo>& opt, const vector<Vec2>& path)
+int BlockSolver::RouteCalOpt(vector<PassedGridInfo>& cur_opt, int &cur_score, const vector<Vec2> &grid)
 {
+  cur_score = 0;
+
+  int cur_len = 0;
   memset(grid_rank, 0xff, sizeof(grid_rank));
-  opt.clear();
-    
-  for (size_t j = 0; j < path.size(); ++j) {
-    int x = path[j].x;
-    int y = path[j].y;
-    grid_rank[x][y] = (int)j;
+  for (int l = GOAL_CNT-1; l >= 0; --l) {
+    int path_len = goal_path[l].size();
+    //    cur_score += path_len + 1;
+    for (int i = 0; i < path_len; ++i) {
+      Vec2 &p = goal_path[l][i];
+      grid_rank[p.x][p.y] = cur_len + i;
+    }
+    cur_len += path_len;
+    grid_rank[mid[l].x][mid[l].y] = cur_len;
+    ++cur_len;
   }
-  
-  for (int i = 0; i < H; ++i) {
-    for (int j = 0; j < W; ++j) {
-      if (GH.grid_info[i][j] != 't') continue;
-      PassedGridInfo p(i, j);
-      int min_ti = INF, max_ti = -1;
-      
-      for (int l = 0; l < 8; ++l) {
-	int x = p.position.x + dir[l][0];
-	int y = p.position.y + dir[l][1];
-	if (0 <= x && x < H && 0 <= y && y < W) {
-	  if (grid_rank[x][y] != -1) {
-	    min_ti = min(min_ti, grid_rank[x][y]);
-	    max_ti = max(max_ti, grid_rank[x][y]);
+
+  cur_opt.clear();
+  for (size_t i = 0; i < grid.size(); ++i) {
+    const Vec2 &p = grid[i];
+    PassedGridInfo pp(p.x, p.y);
+    pp.min_ti = INF;
+    pp.max_ti = -1;
+    int x, y;
+
+    for (int l = 0; l < 8; ++l) {
+      for (int det = 1; det <= 2; ++det) {
+	if ((l&1) && det == 2) continue;
+	x = p.x + dir[l][0] * det;
+	y = p.y + dir[l][1] * det;
+	if (0 <= x && x < H && 0 <= y && y < W && grid_rank[x][y] != -1) {
+	  if (pp.min_ti > grid_rank[x][y]) {
+	    pp.min_ti = grid_rank[x][y];
+	    pp.min_idx = Vec2(x, y);
+	  }
+	  if (pp.max_ti < grid_rank[x][y]) {
+	    pp.max_ti = grid_rank[x][y];
+	    pp.max_idx = Vec2(x, y);
 	  }
 	}
       }
-
-      for (int l = 0; l < 4; l+=2) {
-      	int x = p.position.x + 2*dir[l][0];
-      	int y = p.position.y + 2*dir[l][1];
-      	if (0 <= x && x < H && 0 <= y && y < W) {
-      	  if (grid_rank[x][y] != -1) {
-      	    min_ti = min(min_ti, grid_rank[x][y]);
-      	    max_ti = max(max_ti, grid_rank[x][y]);
-      	  }
-      	}
-      }
-      
-      if (min_ti != INF) {
-	p.max_can_recharge = (max_ti - min_ti)/20; //this is useful  canshu-_-
-	p.route_idx = max_ti;  //this is useful
-	opt.push_back(p);
-      }
+    }
+    
+    if (pp.min_ti != INF) {
+      assert(pp.position != pp.min_idx);
+      assert(pp.position != pp.max_idx);
+      pp.max_can_recharge = (pp.max_ti - pp.min_ti)/20;
+      pp.route_idx = pp.max_ti;
+      cur_opt.push_back(pp);
+      cur_score += Tower::POW(2, pp.max_can_recharge);
     }
   }
 
-  sort(opt.begin(), opt.end());
+  sort(cur_opt.begin(), cur_opt.end());
 
+  return 0;
+}
+
+int BlockSolver::RouteCalGridForType2(vector<Vec2> &gridtype2, const vector<Vec2>& grid)
+{
+  gridtype2.clear();
+  for (int i = goal_path[0].size()-3; i >= 0; --i) {
+    Vec2 &p = goal_path[0][i];
+    int cnt = 0;
+    gridtype2.clear();
+    for (size_t j = 0; j < grid.size(); ++j) {
+      Tower tw(1, 2, grid[j].x, grid[j].y);
+      if (tw.CheckInRange(p)) {
+	gridtype2.push_back(tw.position);
+	++cnt;
+      }
+      if (cnt >= 11) break; 
+    }
+    if (cnt >= 11) break;
+  }
+  
   return 0;
 }
 
@@ -463,6 +515,19 @@ void BlockSolver::Debug()
     GH.grid_info[p.x][p.y] = 't';
   }
 
+  for (size_t i = 0; i < grid_for_type_2.size(); ++i) {
+    Vec2 &p = grid_for_type_2[i];
+    GH.grid_info[p.x][p.y] = 'b';
+  }
+
+  puts("opt_gtid:");
+  for (size_t i = 0; i < opt_grid.size(); ++i)  
+    printf("%d %d %d %d %d idx: %d %d %d %d\n", opt_grid[i].position.x, opt_grid[i].position.y, opt_grid[i].max_can_recharge,
+  	   opt_grid[i].min_ti, opt_grid[i].max_ti, opt_grid[i].min_idx.x, opt_grid[i].min_idx.y, opt_grid[i].max_idx.x, opt_grid[i].max_idx.y);
+
+
+  for (int i = 0; i < GOAL_CNT; ++i) printf("mid[%d]: %d %d\n", i, used_mid[i].x, used_mid[i].y);
+  
   GH.Debug();
 
   RouteClear();
