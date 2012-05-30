@@ -95,17 +95,10 @@ void BlockSolver::Init(int stage_ver, int stage_lev)
 
 void BlockSolver::Run()
 {
+
   if (init_tower_cnt == 0) {
     CalRoute();
     //    Debug();
-
-    RouteClear();
-    for (size_t i = 0; i < grid2build.size(); ++i) {
-      Vec2 &p = grid2build[i];
-      GH.grid_info[p.x][p.y] = 't';
-    }
-
-    GH.CalAllEnemyMovePath();
   }
 
   CalChoice();
@@ -113,36 +106,50 @@ void BlockSolver::Run()
 
 void BlockSolver::CalChoice()
 {
-  int cost, min_cost = INF;
-  vector<Tower> zero_tower;
-  vector<Tower> res, best_res;
+  vector<Tower> init_tower;
+  vector<Tower> tower2build;
 
-  zero_tower.clear();
-  for (size_t i = 0; i < grid_for_type_1.size(); ++i) {
-    Vec2 &p = grid_for_type_1[i];
-    zero_tower.push_back(Tower(0, 0, p.x, p.y));
+  min_cost = INF;
+  best_tower2build.clear();
+
+  //init path
+  RouteClear();
+  for (size_t i = 0; i < grid2build.size(); ++i) {
+    Vec2 &p = grid2build[i];
+    GH.grid_info[p.x][p.y] = 't';
   }
+  GH.CalAllEnemyMovePath();
+  //
 
-  for (size_t i = 0; i < grid_for_type_2.size(); ++i) {
-    Vec2 &p = grid_for_type_2[i];
-    zero_tower.push_back(Tower(1, 2, p.x, p.y));
+  tower2build.clear();
+  for (size_t i = 0; i < grid2build.size(); ++i) {
+    Vec2 &p = grid2build[i];
+    tower2build.push_back(Tower(0, 0, p.x, p.y));
   }
-
-  tower2build = zero_tower;
-  
-  MatchChecker::Instance().Init(enemy_info, tower2build, min(/*(stage_ver > 241)*/+1, player_life));
-  MatchChecker::Instance().Run();
-  if (MatchChecker::Instance().IsWin()) {
-    CalCost(cost, res, tower2build);
-    Output(res);
+  if (TowerBestCheck(tower2build, 1)) {
+    TowerTryEliminate(best_tower2build);
     return;
   }
+
+  init_tower.clear();
+  for (size_t i = 0; i < grid_for_type_1.size(); ++i) {
+    Vec2 &p = grid_for_type_1[i];
+    init_tower.push_back(Tower(0, 0, p.x, p.y));
+  }
+  for (size_t i = 0; i < grid_for_type_2.size(); ++i) {
+    Vec2 &p = grid_for_type_2[i];
+    init_tower.push_back(Tower(1, 2, p.x, p.y));
+  }
+  if (TowerBestCheck(init_tower, 1)) {
+    TowerTryEliminate(best_tower2build);
+    return;
+  }
+
 
   const int LIMIT = 3125;
   int t2lev[5];
 
   for (int state = 0;;++state) {
-    //  for (int state = 0; state < LIMIT; ++state) {
     if (state >= LIMIT) {
       ++t2lev[4];
     } else {
@@ -152,7 +159,7 @@ void BlockSolver::CalChoice()
       }
     }
 
-    tower2build = zero_tower;
+    tower2build = init_tower;
 
     int idx = 0;
     for (int lev = 4; lev >= 0; --lev) {
@@ -162,7 +169,6 @@ void BlockSolver::CalChoice()
 	Tower tw = Tower(lev, 1, p.x, p.y);
 	for (size_t j = 0; j < tower2build.size(); ++j) {
 	  if (tower2build[j].position == tw.position && tower2build[j].CheckDiff(tw)) {
-	    //	    if (t2lev[4] == 7 && lev == 4) printf("yes %d\n", j);
 	    tower2build.erase(tower2build.begin()+j);
 	    tower2build.push_back(tw);
 	    break;
@@ -172,43 +178,16 @@ void BlockSolver::CalChoice()
       }
     }
 
-    MatchChecker::Instance().Init(enemy_info, tower2build, min(/*(stage_ver > 241)*/+1, player_life));
-    MatchChecker::Instance().Run();
-    if (MatchChecker::Instance().IsWin()) {
-
-      CalCost(cost, res, tower2build);
-      if (cost < min_cost) {
-	min_cost = cost;
-	best_res = res;
-
-	// puts("res:");
-	// for (size_t k = 0; k < res.size(); ++k) printf("type: %d\n", res[k].type);
-
-	// printf("t2lev: ");
-	// for (int k = 0; k < 5; ++k) printf("%d ", t2lev[k]);
-	// printf("idx: %d\n", idx);
-	// puts("");
-	// printf("state: %d\n", state);
-	break;
-      }
-    }
+    if (TowerBestCheck(tower2build, 1)) break;
   }
 
-  //  if (!MatchChecker::Instance().IsWin()) while(1);
-
-  //  printf("min_cost: %d\n", min_cost);
-  Output(best_res);
+  TowerTryEliminate(best_tower2build);
 }
 
 void BlockSolver::CalCost(int &cost, vector<Tower> &res, const vector<Tower>& tower2build)
 {
-  // puts("tower2build:");
-  // for (size_t i = 0; i < tower2build.size(); ++i) 
-  //   printf("type %d\n", tower2build[i].type);
-  
   res.clear();
 
-  //  printf("tower2build_size: %d\n", tower2build.size());
   cost = 0;
   for (size_t i = 0; i < tower2build.size(); ++i) {
     int x = tower2build[i].position.x;
@@ -219,7 +198,6 @@ void BlockSolver::CalCost(int &cost, vector<Tower> &res, const vector<Tower>& to
     int mlev = mp_tower[x][y] >> 2;
     int mty = mp_tower[x][y] & 3;
 
-    //    printf("lev ty: %d %d %d %d\n", lev, ty, mlev, mty);
     if (mp_tower[x][y] == -1) {
       cost += tower2build[i].BuildCost();
       res.push_back(tower2build[i]);
@@ -237,17 +215,12 @@ void BlockSolver::CalCost(int &cost, vector<Tower> &res, const vector<Tower>& to
   }
 }
 
-void BlockSolver::Output(vector<Tower>& res)
+void BlockSolver::Output(const vector<Tower>& res)
 {
   printf("%d\n", res.size());
   for (size_t i = 0; i < res.size(); ++i) 
     printf("%d %d %d %d\n", res[i].position.y, res[i].position.x, res[i].level, res[i].type);
 
-  // fprintf(fd, "%d\n", res.size());
-  // for (size_t i = 0; i < res.size(); ++i) 
-  //   fprintf(fd, "%d %d %d %d\n", res[i].position.y, res[i].position.x, res[i].level, res[i].type);
-  
-  // fflush(fd);
   fflush(stdout);
 }
 
@@ -457,14 +430,21 @@ int BlockSolver::RouteCalOpt(vector<PassedGridInfo>& cur_opt, int &cur_score, co
   for (int l = GOAL_CNT-1; l >= 0; --l) {
     int path_len = goal_path[l].size();
     //    cur_score += path_len + 1;
+
+    grid_rank[mid[l].x][mid[l].y] = cur_len++;
     for (int i = 0; i < path_len; ++i) {
       Vec2 &p = goal_path[l][i];
       grid_rank[p.x][p.y] = cur_len + i;
     }
     cur_len += path_len;
-    grid_rank[mid[l].x][mid[l].y] = cur_len;
-    ++cur_len;
   }
+
+  //
+  int avg_wait = 10;
+  for (size_t i = 0; i < enemy_info.size(); ++i) 
+    if (enemy_info[i].life > 1000)
+      avg_wait = max(avg_wait, 101 / enemy_info[i].move_time);
+  //
 
   cur_opt.clear();
   for (size_t i = 0; i < grid.size(); ++i) {
@@ -495,10 +475,10 @@ int BlockSolver::RouteCalOpt(vector<PassedGridInfo>& cur_opt, int &cur_score, co
     if (pp.min_ti != INF) {
       assert(pp.position != pp.min_idx);
       assert(pp.position != pp.max_idx);
-      pp.max_can_recharge = (pp.max_ti - pp.min_ti)/20;
+      pp.max_can_recharge = (pp.max_ti - pp.min_ti)/avg_wait;
       pp.route_idx = pp.max_ti;
       cur_opt.push_back(pp);
-      cur_score += Tower::POW(2, pp.max_can_recharge);
+      cur_score += Tower::POW(5, pp.max_can_recharge);
     }
   }
 
@@ -511,19 +491,21 @@ int BlockSolver::RouteCalGridForType2(vector<Vec2> &gridtype2, const vector<Vec2
 {
   gridtype2.clear();
 
-  for (int i = goal_path[0].size()-3; i >= 0; i -= 1) {
+  vector<Vec2> cur_grid;
+  for (int i = goal_path[0].size()-2; i >= 0; i -= 1) {
     Vec2 &p = goal_path[0][i];
     int cnt = 0;
-    gridtype2.clear();
+    cur_grid.clear();
+
     for (size_t j = 0; j < grid.size(); ++j) {
       Tower tw(1, 2, grid[j].x, grid[j].y);
       if (tw.CheckInRange(p)) {
-	gridtype2.push_back(tw.position);
+	cur_grid.push_back(tw.position);
 	++cnt;
       }
-      if (cnt >= 11) break; 
+      if (cnt >= 11) { grid_for_wait = p; break; }
     }
-    if (cnt >= 11) break;
+    if (cnt >= 11) { gridtype2.insert(gridtype2.end(), cur_grid.begin(), cur_grid.end()); break; }
   }
   
   return 0;
@@ -555,4 +537,67 @@ void BlockSolver::Debug()
   GH.Debug();
 
   RouteClear();
+}
+
+int BlockSolver::TowerBestCheck(const vector<Tower>& tw, int life)
+{
+  int cost;
+  vector<Tower> res;
+  MatchChecker::Instance().Init(enemy_info, tw, life);
+  MatchChecker::Instance().Run();
+
+  if (MatchChecker::Instance().IsWin()) {
+    CalCost(cost, res, tw);
+    if (cost < min_cost) {
+      min_cost = cost;
+      best_tower2build = tw;
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+int BlockSolver::TowerTryEliminate(const vector<Tower>& tw)
+{
+  RouteClear();
+  for (size_t i = 0; i < grid2build.size(); ++i) {
+    Vec2 &p = grid2build[i];
+    GH.grid_info[p.x][p.y] = 't';
+  }
+
+  //  GH.Debug();
+
+  vector<Tower> cur_tw = tw;
+  for (int l = cur_tw.size()-1; l >= 0; --l) {
+    Tower p = tw[l];
+    int x = p.position.x;
+    int y = p.position.y;
+    GH.grid_info[x][y] = '0';
+
+    cur_tw.erase(cur_tw.begin() + l);
+    if (GH.CalAllEnemyMovePath() == 0) {
+      MatchChecker::Instance().Init(enemy_info, cur_tw, 1);
+      MatchChecker::Instance().Run();
+      if (!MatchChecker::Instance().IsWin()) {
+  	cur_tw.push_back(p);
+  	GH.grid_info[x][y] = 't';
+      }
+    }
+  }
+
+  // RouteClear();
+  // for (size_t i = 0; i < cur_tw.size(); ++i) {
+  //   Vec2 &p = cur_tw[i].position;
+  //   GH.grid_info[p.x][p.y] = 't';
+  // }
+  // GH.Debug();
+
+  vector<Tower> res;
+  int cost;
+
+  CalCost(cost, res, cur_tw);
+  Output(res);
+  
+  return 0;
 }

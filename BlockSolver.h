@@ -31,7 +31,7 @@ struct BlockSolver
   void CalRoute();
   void CalChoice();
   void CalCost(int &cost, vector<Tower> &res, const vector<Tower>& tower2build);
-  void Output(vector<Tower>& res);
+  void Output(const vector<Tower>& res);
 
   int mp_tower[MAXN][MAXN];
   vector<Tower> tower_info;
@@ -54,6 +54,9 @@ struct BlockSolver
   vector<Vec2> enemy_all_path;
   vector<Vec2> enemy_all_block_near;
 
+  int TowerBestCheck(const vector<Tower>& tw, int life);
+  int TowerTryEliminate(const vector<Tower>& tw);
+
   int RouteClear();
   int RouteInit();
   int RouteIter();
@@ -68,9 +71,10 @@ struct BlockSolver
   vector<Vec2> grid_for_type_1;
   vector<Vec2> grid_for_type_2;
 
-  vector<Tower> tower2build;
+  vector<Tower> best_tower2build;
 
   int best_score;
+  int min_cost;
   int stage_ver, stage_lev;
   int iter_count[GOAL_CNT];
   Vec2 up[GOAL_CNT], down[GOAL_CNT], left[GOAL_CNT], right[GOAL_CNT], mid[GOAL_CNT];
@@ -78,6 +82,7 @@ struct BlockSolver
   Vec2 enemy_dst[GOAL_CNT];
   Vec2 goal_dst[GOAL_CNT];
 
+  Vec2 grid_for_wait;
   Vec2 used_mid[GOAL_CNT];
 
   void Debug();
