@@ -3,6 +3,9 @@
 
 #include "Comm.h"
 
+#define _BUILD_TOWER_GREED_
+#define _BUILD_TOWER_GA_
+
 struct BlockSolver
 {
   struct PassedGridInfo
@@ -12,7 +15,6 @@ struct BlockSolver
     int max_can_recharge;
     int route_idx;
 
-    //for debug
     Vec2 min_idx, max_idx;
     int min_ti, max_ti;
 
@@ -57,6 +59,8 @@ struct BlockSolver
   int TowerBestCheck(const vector<Tower>& tw, int life);
   int TowerTryEliminate(const vector<Tower>& tw);
 
+  void BuildTowerByGreed();
+
   int RouteClear();
   int RouteInit();
   int RouteIter();
@@ -86,7 +90,6 @@ struct BlockSolver
   Vec2 used_mid[GOAL_CNT];
 
   void Debug();
-  FILE *fd;
 };
 
 #endif

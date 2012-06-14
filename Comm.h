@@ -108,10 +108,10 @@ struct GridHandler
 struct MatchChecker
 {
   struct EnemyInfo {
-    EnemyInfo(const Enemy& info, const vector<Vec2>& path, const string& instruction) {
-      this->path = path;
-      this->info = info;
-      this->instruction = instruction;
+    EnemyInfo(const Enemy& e_info, const vector<Vec2>& e_path, const string& e_instruction) {
+      path = e_path;
+      info = e_info;
+      instruction = e_instruction;
       ins_len = instruction.size();
       cur_position = info.position;
       wait_time = info.occur_time;
@@ -134,10 +134,10 @@ struct MatchChecker
 
   struct TowerInfo
   {
-    TowerInfo(const Tower& info, int enemy_size) {
+    TowerInfo(const Tower& e_info, int enemy_size) {
       enemy_enter_time.clear();
       enemy_enter_time = vector<int>(enemy_size, INF);
-      this->info = info;
+      info = e_info;
       wait_time = 0;
       target = -1;
       attack_cnt = 0;

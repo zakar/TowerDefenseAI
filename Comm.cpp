@@ -220,87 +220,84 @@ int GridHandler::CalMovePath(const Vec2& src, const vector<Vec2>& dst,
 {
   static int dist[MAXN][MAXN];
   static int vis[MAXN][MAXN];
-  static Vec2 pre[MAXN][MAXN];
-  static Vec2 que[100*MAXN*MAXN];
-  memset(vis, 0, sizeof(vis));
-  memset(dist, 0x3f, sizeof(dist));
-
-  dist[src.x][src.y] = 0;
-  vis[src.x][src.y] = 1;
-  int st = 0, ed = 1;
-  que[st] = src;
-
-  Vec2 p;
-  int x, y, x1, y1, x2, y2;
-  for (; st < ed; ++st) {
-    p = que[st];
-    for (int l = 0; l < 8; l+=det) { 
-      x2 = p.x;
-      y1 = p.y;
-      x = x1 = p.x + dir[l][0];
-      y = y2 = p.y + dir[l][1];
-
-      if (CheckPassable(x, y) && CheckPassable(x1, y1) && CheckPassable(x2, y2)) {
-	if (dist[x][y] > dist[p.x][p.y] + 10 + 4*(l&1)) {
-	  dist[x][y] = dist[p.x][p.y] + 10 + 4*(l&1);
-	  pre[x][y] = p;
-	  if (!vis[x][y]) {
-	    vis[x][y] = 1;
-	    que[ed++] = Vec2(x,y);
-	  }
-	}
-      }
-    }
-    vis[p.x][p.y] = 0;
-  }
-
-  int min_cost = INF;
-  for (size_t i = 0; i < dst.size(); ++i) {
-    p = dst[i];
-    min_cost = min(min_cost, dist[p.x][p.y]);
-  }
-
-  path.clear();
-  instruction.clear();
-  if (min_cost == INF) return -1;
+  static Vec2 que[500*MAXN*MAXN];
 
   vector<Vec2> cur_path;
   string cur_path_str, best_path_str = "9";
-  int cur_path_len;
-  for (size_t i = 0; i < dst.size(); ++i) {
-    p = dst[i];
-    if (dist[p.x][p.y] > min_cost) continue;
+  int min_cost = INF;
 
-    cur_path.clear();
-    for (; p != src; p = pre[p.x][p.y]) {
-      cur_path.push_back(p);
-    }
-    cur_path.push_back(p);
-    reverse(cur_path.begin(), cur_path.end());
-    cur_path_len = cur_path.size();
+  instruction.clear();
+  path.clear();
+  for (size_t k = 0; k < dst.size(); ++k) {
+    memset(vis, 0, sizeof(vis));
+    memset(dist, 0x3f, sizeof(dist));
+  
+    dist[dst[k].x][dst[k].y] = 0;
+    vis[dst[k].x][dst[k].y] = 1;
+    int st = 0, ed = 1;
+    que[st] = dst[k];
 
-    cur_path_str.clear();
-    for (int j = 1; j < cur_path_len; ++j) {
-      for (int l = 0; l < 8; ++l) {
-	if (cur_path[j-1] + Vec2(dir[l][0], dir[l][1]) == cur_path[j]) {
-	  if (l&1) {
-	    cur_path.push_back(cur_path[j-1] + Vec2(dir[l][0], 0));
-	    cur_path.push_back(cur_path[j-1] + Vec2(0, dir[l][1]));
+    Vec2 p;
+    int x, y, x1, y1, x2, y2;
+    for (; st < ed; ++st) {
+      p = que[st];
+      for (int l = 0; l < 8; l+=det) { 
+	x2 = p.x;
+	y1 = p.y;
+	x = x1 = p.x + dir[l][0];
+	y = y2 = p.y + dir[l][1];
+	
+	if (CheckPassable(x, y) && CheckPassable(x1, y1) && CheckPassable(x2, y2)) {
+	  if (dist[x][y] > dist[p.x][p.y] + 10 + 4*(l&1)) {
+	    dist[x][y] = dist[p.x][p.y] + 10 + 4*(l&1);
+	    if (!vis[x][y]) {
+	      vis[x][y] = 1;
+	      que[ed++] = Vec2(x,y);
+	    }
 	  }
-	  cur_path_str += '0' + l;
-	  break;
 	}
       }
+      vis[p.x][p.y] = 0;
     }
-    if (cur_path_str < best_path_str) {
-      best_path_str = cur_path_str;
-      path = cur_path;
-      instruction = best_path_str;
+
+    if (dist[src.x][src.y] != INF && dist[src.x][src.y] <= min_cost) {
+      cur_path_str.clear();
+      cur_path.clear();
+      cur_path.push_back(src);
+
+      p = src;
+      while (p != dst[k]) {
+	for (int l = 0; l < 8; l+=det) { 
+	  x2 = p.x;
+	  y1 = p.y;
+	  x = x1 = p.x + dir[l][0];
+	  y = y2 = p.y + dir[l][1];
+	
+	  if (CheckPassable(x, y) && CheckPassable(x1, y1) && CheckPassable(x2, y2)) {
+	    if (dist[x][y] + 10 + 4*(l&1) == dist[p.x][p.y]) {
+	      cur_path_str += '0' + l;
+	      cur_path.push_back(Vec2(x, y));
+	      cur_path.push_back(Vec2(x1, y1));
+	      cur_path.push_back(Vec2(x2, y2));
+	      p = Vec2(x, y);
+	      break;
+	    }
+	  }
+	}
+      }
+
+      if (dist[src.x][src.y] < min_cost || (dist[src.x][src.y] == min_cost && cur_path_str < best_path_str)) {
+	min_cost = dist[src.x][src.y];
+	best_path_str = cur_path_str;
+	instruction = best_path_str;
+	path = cur_path;
+      }
     }
   }
 
-  return 0;
+  return min_cost < INF ? 0 : -1;
 }
+
 
 int GridHandler::CalAllEnemyMovePath()
 {
@@ -365,7 +362,7 @@ int MatchChecker::TowerInfo::FindTarget(const vector<EnemyInfo> &cur_enemy) {
   target = -1;
   int in_time = INF, oc_time = INF, ip_time = INF;
   for (size_t j = 0; j < cur_enemy.size(); ++j) {
-    if (cur_enemy[j].remain_life <= 0 || cur_enemy[j].ins_idx == -1 || cur_enemy[j].wait_time == INF) continue;
+    if (cur_enemy[j].remain_life <= 0 || cur_enemy[j].ins_idx == -1 || cur_enemy[j].wait_time >= INF) continue;
     if (enemy_enter_time[j] == INF) continue;
 
     assert(cur_enemy[j].remain_life > 0);
@@ -389,7 +386,7 @@ int MatchChecker::EnemyInfo::CalWaitTime()
   if (ins_idx == ins_len) return 0;
   int fa = instruction[ins_idx] - '0';
   if (fa&1) 
-    return ((int)(info.move_time * 14 / 10)); //!!!!!
+    return ((int)(info.move_time * 14 / 10)); 
   else
     return info.move_time;
 }
@@ -440,14 +437,12 @@ void MatchChecker::Run()
     cur_time += 1;
 
     for (size_t i = 0; i < cur_enemy.size(); ++i) {
-      if (cur_enemy[i].remain_life <= 0 || cur_enemy[i].wait_time == INF) continue;
+      if (cur_enemy[i].remain_life <= 0 || cur_enemy[i].wait_time >= INF) continue;
       cur_enemy[i].wait_time -= 1;
 
       if (cur_enemy[i].wait_time) continue;
-      //if (cur_enemy[i].wait_time == 0) {  //!!!!!!!!!!!!!!!!!can't use this!!!!!!
-	cur_enemy[i].Action();
-	cur_enemy[i].wait_time = cur_enemy[i].CalWaitTime();
-	//}
+      cur_enemy[i].Action();
+      cur_enemy[i].wait_time = cur_enemy[i].CalWaitTime();
 
       for (size_t j = 0; j < cur_tower.size(); ++j) {
 	if (cur_tower[j].info.CheckInRange(cur_enemy[i].cur_position)) {
@@ -459,30 +454,32 @@ void MatchChecker::Run()
       }
     }
 
-    for (size_t i = 0; i < cur_tower.size(); ++i) cur_tower[i].FindTarget(cur_enemy);
-
     for (size_t i = 0; i < cur_tower.size(); ++i) {
       if (cur_tower[i].wait_time > 0) cur_tower[i].wait_time -= 1;
       if (cur_tower[i].wait_time) continue;
+      cur_tower[i].FindTarget(cur_enemy);
+    }
 
+    for (size_t i = 0; i < cur_tower.size(); ++i) {
       int target = cur_tower[i].target;
       if (target != -1) {
 	cur_tower[i].attack_cnt += 1;
 	cur_tower[i].wait_time = cur_tower[i].info.ReCharge()+1;
 	cur_enemy[target].remain_life -= cur_tower[i].info.Attack();
 	cur_enemy[target].wait_time += cur_tower[i].info.StopTime();
+	cur_tower[i].target = -1;
       }
     }
 
     remain_enemy = 0;
     for (size_t i = 0; i < cur_enemy.size(); ++i) {
       if (cur_enemy[i].remain_life > 0 && 
-	  cur_enemy[i].wait_time != INF && 
+	  cur_enemy[i].wait_time < INF && 
 	  cur_enemy[i].InGoal()) {
 	cur_enemy[i].wait_time = INF;
 	--player_life;
       }
-      if (cur_enemy[i].remain_life > 0 && cur_enemy[i].wait_time != INF) ++remain_enemy;
+      if (cur_enemy[i].remain_life > 0 && cur_enemy[i].wait_time < INF) ++remain_enemy;
     }
   }
 }
