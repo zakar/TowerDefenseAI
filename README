@@ -1,0 +1,5 @@
+It's a tower defense AI of code_vs_asia competition
+	ai.cpp: the entry code
+	BlockSolver: the main logic, about how to find a long path and how to build tower along the path
+	GA_BuildTower: use GA to find the best build tower strategy
+	Comm: some utility code
